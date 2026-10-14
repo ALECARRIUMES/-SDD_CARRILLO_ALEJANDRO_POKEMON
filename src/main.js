@@ -10,5 +10,25 @@ const ctx = canvas.getContext("2d");
 canvas.width = WORLD.w;
 canvas.height = WORLD.h;
 
+// Imágenes cargadas
+const images = { fondo1: null };
+
+function loadImage(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.src = src;
+  });
+}
+
+function drawBackground() {
+  const bg = BACKGROUNDS.fondo1;
+  ctx.drawImage(images.fondo1, bg.sx, bg.sy, bg.sw, bg.sh, 0, 0, WORLD.w, WORLD.h);
+}
+
+// Color liso mientras carga el fondo
 ctx.fillStyle = "#2e7d32";
 ctx.fillRect(0, 0, WORLD.w, WORLD.h);
+
+images.fondo1 = await loadImage(BACKGROUNDS.fondo1.src);
+drawBackground();
