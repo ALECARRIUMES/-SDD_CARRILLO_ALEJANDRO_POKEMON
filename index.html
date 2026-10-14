@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pokémon Game — Charizard</title>
+    <!-- Icono vacío: evita el 404 de /favicon.ico en la consola -->
+    <link rel="icon" href="data:," />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #000;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+      /* El canvas tiene la resolución del fondo; CSS lo ajusta a la ventana sin deformarlo. */
+      #game {
+        display: block;
+        width: min(100vw, calc(100vh * 2752 / 1536));
+        height: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>
