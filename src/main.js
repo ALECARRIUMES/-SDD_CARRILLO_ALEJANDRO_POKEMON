@@ -63,11 +63,24 @@ ctx.imageSmoothingEnabled = false;
 const images = { fondo1: null, idle: null, walk: null };
 
 function loadImage(src) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`No se pudo cargar: ${src}`));
     img.src = src;
   });
+}
+
+function drawLoadErrors(messages) {
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, WORLD.w, WORLD.h);
+  ctx.fillStyle = "#fff";
+  ctx.font = "64px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const lineHeight = 96;
+  const top = WORLD.h / 2 - ((messages.length - 1) * lineHeight) / 2;
+  messages.forEach((message, i) => ctx.fillText(message, WORLD.w / 2, top + i * lineHeight));
 }
 
 function drawBackground() {
@@ -108,15 +121,6 @@ function drawPlayer() {
   );
 }
 
-// Color liso mientras cargan las imágenes
-ctx.fillStyle = "#2e7d32";
-ctx.fillRect(0, 0, WORLD.w, WORLD.h);
-
-[images.fondo1, images.idle, images.walk] = await Promise.all([
-  loadImage(BACKGROUNDS.fondo1.src),
-  loadImage(CHARIZARD.idle.src.anim),
-  loadImage(CHARIZARD.walk.src.anim),
-]);
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -175,4 +179,22 @@ function loop(timestamp) {
   requestAnimationFrame(loop);
 }
 
-requestAnimationFrame(loop);
+// Arranque: el bucle empieza solo cuando las tres imágenes han cargado
+ctx.fillStyle = "#2e7d32"; // color liso mientras cargan
+ctx.fillRect(0, 0, WORLD.w, WORLD.h);
+
+const sources = {
+  fondo1: BACKGROUNDS.fondo1.src,
+  idle: CHARIZARD.idle.src.anim,
+  walk: CHARIZARD.walk.src.anim,
+};
+const results = await Promise.allSettled(Object.values(sources).map(loadImage));
+const errors = results.filter((r) => r.status === "rejected").map((r) => r.reason);
+
+if (errors.length > 0) {
+  errors.forEach((error) => console.error(error));
+  drawLoadErrors(errors.map((error) => error.message));
+} else {
+  Object.keys(sources).forEach((name, i) => (images[name] = results[i].value));
+  requestAnimationFrame(loop);
+}
