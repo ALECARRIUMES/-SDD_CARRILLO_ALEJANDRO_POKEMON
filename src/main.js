@@ -4,6 +4,7 @@ import { BACKGROUNDS, CHARIZARD, getFrame, frameIndexAt } from "../spritesheet.j
 const PLAYER_SCALE = 4; // multiplicador del sprite, en píxeles del fondo
 const PLAYER_SPEED = 600; // píxeles del fondo por segundo
 const MARGIN = { x: 100, top: 260, bottom: 20 }; // margen de los pies respecto a cada borde
+const SHADOW_ELLIPSE = { rx: 64, ry: 20, alpha: 0.35 }; // sombra bajo los pies, en píxeles del fondo
 
 // Mundo: se lee de BACKGROUNDS.fondo1, no se escribe a mano
 const WORLD = { w: BACKGROUNDS.fondo1.sw, h: BACKGROUNDS.fondo1.sh }; // 2752 × 1536
@@ -79,6 +80,16 @@ function feetOf(frame) {
   return frame.shadow ?? { x: frame.sw / 2, y: frame.sh };
 }
 
+function drawShadow() {
+  ctx.save();
+  ctx.globalAlpha = SHADOW_ELLIPSE.alpha;
+  ctx.fillStyle = "#000";
+  ctx.beginPath();
+  ctx.ellipse(player.x, player.y, SHADOW_ELLIPSE.rx, SHADOW_ELLIPSE.ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawPlayer() {
   const frame = getFrame(player.anim, player.dir, frameIndexAt(player.anim, player.animMs));
   const feet = feetOf(frame);
@@ -149,6 +160,7 @@ function update(dtMs) {
 
 function render() {
   drawBackground();
+  drawShadow(); // antes que el sprite: queda por detrás
   drawPlayer();
 }
 
