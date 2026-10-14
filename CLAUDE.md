@@ -4,9 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Estado del proyecto
 
-Juego 2D en `<canvas>` con Charizard como personaje y dos fondos (bosque → volcán). **El juego todavía no existe**: el repo solo contiene los assets, los datos de sprites ya calculados (`spritesheet.js`) y el script que los genera. No hay `package.json`, ni `index.html`, ni build, ni linter, ni tests. No es un repositorio git.
+Juego 2D en `<canvas>` con Charizard como personaje y dos fondos (bosque → volcán). Está implementado el MVP (`specs/00-mvp-charizard-movimiento.md`): Charizard se mueve por el fondo 1 con flechas/WASD en 8 direcciones, animado con `idle` y `walk`. Todo el código del juego vive en `src/main.js`, cargado desde `index.html`. No hay `package.json`, ni build, ni linter, ni tests automáticos.
 
 ## Comandos
+
+Arrancar el juego (desde la raíz del proyecto) y abrir `http://localhost:8000`:
+
+```
+python -m http.server 8000
+```
 
 Regenerar `spritesheet.js` cuando cambien los assets (requiere Python con Pillow: `pip install pillow`):
 
@@ -16,7 +22,7 @@ python tools/gen_spritesheet.py .
 
 El argumento es la raíz del proyecto. Al terminar imprime `missing anchors: N [...]`: los frames en los que no se encontró algún píxel de anclaje.
 
-`spritesheet.js` es un módulo ES (`export`), así que el juego debe cargarse con `<script type="module">` y servirse por HTTP (p. ej. `python -m http.server`); abrir el HTML con `file://` no funciona.
+`spritesheet.js` y `src/main.js` son módulos ES (`export`/`import`), así que el juego se carga con `<script type="module">` y debe servirse por HTTP; abrir `index.html` con `file://` no funciona.
 
 ## Arquitectura
 
@@ -30,7 +36,7 @@ assets/FondoSprite/image{1,2}.png
 spritesheet.js   (generado, ~200 KB, 1476 líneas)
         │  import
         ▼
-código del juego (por escribir)
+src/main.js      (juego; index.html lo carga como módulo)
 ```
 
 - Los assets siguen el formato PMD SpriteCollab: cada animación es una grilla donde la **columna es el frame** y la **fila es la dirección** (8 filas; `Sleep` tiene una sola y todas las direcciones apuntan a ella). El tamaño de frame cambia entre animaciones (p. ej. walk 56×72, attack 72×80).
@@ -53,4 +59,4 @@ Direcciones: `down` · `downRight` · `right` · `upRight` · `up` · `upLeft` �
 
 ## Flujo de specs
 
-El proyecto tiene instaladas las skills `/spec` y `/spec-impl` (en `.agents/skills/`, enlazadas desde `.claude/skills/`, versiones fijadas en `skills-lock.json`). `/spec` redacta specs numeradas en `specs/NN-slug.md`; `/spec-impl` implementa una spec aprobada paso a paso, por defecto en una rama `spec-NN-slug`, y nunca hace commit por su cuenta. `/spec-impl` necesita git, así que hay que ejecutar `git init` antes de usarla.
+El proyecto tiene instaladas las skills `/spec` y `/spec-impl` (en `.agents/skills/`, enlazadas desde `.claude/skills/`, versiones fijadas en `skills-lock.json`). `/spec` redacta specs numeradas en `specs/NN-slug.md`; `/spec-impl` implementa una spec aprobada paso a paso, por defecto en una rama `spec-NN-slug`, y nunca hace commit por su cuenta. El trabajo se hace en la rama `sdd/ejercicio-final`; `specs/.spec-config.yml` tiene `AutoCreateBranch: false` para que `/spec-impl` no cree ramas sin preguntar.
