@@ -110,10 +110,28 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+// Dirección del sprite según el signo del vector: DIR_BY_VECTOR[vy + 1][vx + 1]
+const DIR_BY_VECTOR = [
+  ["upLeft", "up", "upRight"],
+  ["left", null, "right"],
+  ["downLeft", "down", "downRight"],
+];
+
+function setAnim(anim) {
+  if (player.anim === anim) return;
+  player.anim = anim;
+  player.animMs = 0;
+}
+
 function update(dtMs) {
   // Vector de movimiento; teclas opuestas se anulan
   let vx = (isPressed("right") ? 1 : 0) - (isPressed("left") ? 1 : 0);
   let vy = (isPressed("down") ? 1 : 0) - (isPressed("up") ? 1 : 0);
+
+  // Moviéndose: walk hacia el vector. Quieto: idle con la última dirección
+  const moving = vx !== 0 || vy !== 0;
+  if (moving) player.dir = DIR_BY_VECTOR[vy + 1][vx + 1];
+  setAnim(moving ? "walk" : "idle");
 
   // Normalizado: en diagonal no se va más rápido
   const length = Math.hypot(vx, vy);
