@@ -1,0 +1,15 @@
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Python (tools/gen_spritesheet.py)
+__pycache__/
+*.pyc
+
+# Editores
+.vscode/
+.idea/
+
+# Claude Code: ajustes locales del usuario
+.claude/settings.local.json
