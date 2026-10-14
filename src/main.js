@@ -1,4 +1,4 @@
-import { BACKGROUNDS, CHARIZARD, getFrame } from "../spritesheet.js";
+import { BACKGROUNDS, CHARIZARD, getFrame, frameIndexAt } from "../spritesheet.js";
 
 // Constantes ajustables
 const PLAYER_SCALE = 4; // multiplicador del sprite, en píxeles del fondo
@@ -47,7 +47,7 @@ function feetOf(frame) {
 }
 
 function drawPlayer() {
-  const frame = getFrame(player.anim, player.dir, 0);
+  const frame = getFrame(player.anim, player.dir, frameIndexAt(player.anim, player.animMs));
   const feet = feetOf(frame);
   const dx = player.x - feet.x * PLAYER_SCALE;
   const dy = player.y - feet.y * PLAYER_SCALE;
@@ -73,5 +73,24 @@ ctx.fillRect(0, 0, WORLD.w, WORLD.h);
   loadImage(CHARIZARD.idle.src.anim),
   loadImage(CHARIZARD.walk.src.anim),
 ]);
-drawBackground();
-drawPlayer();
+function update(dtMs) {
+  player.animMs += dtMs;
+}
+
+function render() {
+  drawBackground();
+  drawPlayer();
+}
+
+// Bucle principal: el delta sale del timestamp de requestAnimationFrame
+let lastTime = null;
+
+function loop(timestamp) {
+  const dtMs = lastTime === null ? 0 : timestamp - lastTime;
+  lastTime = timestamp;
+  update(dtMs);
+  render();
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
