@@ -1,6 +1,6 @@
 # SPEC 01 — MVP: Charizard se mueve por el fondo 1
 
-> **Estado:** aprobado
+> **Estado:** Implementado
 > **Depende de:** ninguna
 > **Fecha:** 2026-10-08
 > **Objetivo:** Mostrar el fondo 1 en un canvas y mover a Charizard por él con el teclado en 8 direcciones, animado con `idle` y `walk`.
@@ -89,22 +89,22 @@ Mapa de teclas:
 
 ## Criterios de aceptación
 
-- [ ] Con `python -m http.server 8000` en la raíz, `http://localhost:8000` carga sin errores en la consola.
-- [ ] El fondo 1 se ve entero, sin deformarse, y se reajusta al redimensionar la ventana.
-- [ ] Charizard aparece en el centro del fondo, mirando hacia abajo y con la animación `idle`.
-- [ ] Cada flecha mueve a Charizard en su sentido y la tecla WASD equivalente hace lo mismo.
-- [ ] Pulsar dos teclas perpendiculares lo mueve en diagonal con el sprite diagonal correspondiente (`upRight`, `upLeft`, `downRight`, `downLeft`).
-- [ ] Cruzar el fondo en diagonal tarda lo mismo por píxel que en horizontal: la velocidad diagonal no es mayor.
-- [ ] Pulsar dos teclas opuestas a la vez deja a Charizard quieto en `idle`.
-- [ ] Al moverse se reproduce `walk` y al soltar todas las teclas se reproduce `idle` mirando hacia la última dirección.
-- [ ] Charizard no sale del fondo por ninguno de los cuatro bordes.
-- [ ] Al pasar de `idle` a `walk` y viceversa, los pies no cambian de posición en pantalla.
-- [ ] La sombra se ve bajo los pies y se dibuja por detrás del sprite.
-- [ ] El sprite se ve con píxeles nítidos, sin difuminado.
-- [ ] Las flechas no desplazan la página.
-- [ ] Si se cambia la ventana de foco con una tecla pulsada, Charizard no sigue caminando solo al volver.
-- [ ] Si se renombra temporalmente `assets/FondoSprite/image1.png`, el canvas muestra `No se pudo cargar: assets/FondoSprite/image1.png`.
-- [ ] `spritesheet.js` no tiene cambios.
+- [x] Con `python -m http.server 8000` en la raíz, `http://localhost:8000` carga sin errores en la consola.
+- [x] El fondo 1 se ve entero, sin deformarse, y se reajusta al redimensionar la ventana.
+- [x] Charizard aparece en el centro del fondo, mirando hacia abajo y con la animación `idle`.
+- [x] Cada flecha mueve a Charizard en su sentido y la tecla WASD equivalente hace lo mismo.
+- [x] Pulsar dos teclas perpendiculares lo mueve en diagonal con el sprite diagonal correspondiente (`upRight`, `upLeft`, `downRight`, `downLeft`).
+- [x] Cruzar el fondo en diagonal tarda lo mismo por píxel que en horizontal: la velocidad diagonal no es mayor.
+- [x] Pulsar dos teclas opuestas a la vez deja a Charizard quieto en `idle`.
+- [x] Al moverse se reproduce `walk` y al soltar todas las teclas se reproduce `idle` mirando hacia la última dirección.
+- [x] Charizard no sale del fondo por ninguno de los cuatro bordes.
+- [x] Al pasar de `idle` a `walk` y viceversa, los pies no cambian de posición en pantalla.
+- [x] La sombra se ve bajo los pies y se dibuja por detrás del sprite.
+- [x] El sprite se ve con píxeles nítidos, sin difuminado.
+- [x] Las flechas no desplazan la página.
+- [x] Si se cambia la ventana de foco con una tecla pulsada, Charizard no sigue caminando solo al volver.
+- [x] Si se renombra temporalmente `assets/FondoSprite/image1.png`, el canvas muestra `No se pudo cargar: assets/FondoSprite/image1.png`.
+- [x] `spritesheet.js` no tiene cambios.
 
 ## Decisiones
 
