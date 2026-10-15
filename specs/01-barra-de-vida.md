@@ -1,6 +1,6 @@
 # SPEC 01 — Barra de vida de Charizard
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** SPEC 00 (`00-mvp-charizard-movimiento.md`)
 > **Fecha:** 2026-10-14
 > **Objetivo:** Dar a Charizard 100 PS visibles en una barra que baja con un placaje de prueba (H), lo debilita al llegar a 0 y se restaura con R.
@@ -147,38 +147,38 @@ Describen el producto final, al terminar el paso 6.
 
 ### Lógica (`node --test`)
 
-- [ ] L1. `createCombatant({ name: "Charizard" })` devuelve `{ name: "Charizard", hp: 100, maxHp: 100 }`.
-- [ ] L2. Siete `applyAttack(c, TEST_ATTACK)` seguidos dejan los PS en 85, 70, 55, 40, 25, 10 y 0, con daños 15, 15, 15, 15, 15, 15 y 10.
-- [ ] L3. Un octavo ataque con 0 PS devuelve `damage === 0` y `hp === 0`.
-- [ ] L4. Un ataque de potencia 50 sobre 10 PS devuelve `damage === 10` y `hp === 0`.
-- [ ] L5. `isFainted` es `false` con 1 PS y `true` con 0.
-- [ ] L6. `restore` devuelve `hp === 100` desde 0 PS y desde 40 PS.
-- [ ] L7. Con `maxHp = 100`, `hpLevel` da: 100 → `high`, 51 → `high`, 50 → `medium`, 21 → `medium`, 20 → `low`, 0 → `low`.
-- [ ] L8. Con `maxHp = 200`, `hpLevel(100, 200)` es `medium` y `hpLevel(40, 200)` es `low`.
-- [ ] L9. `applyAttack` y `restore` no modifican el objeto recibido.
-- [ ] L10. El combatiente devuelto por `applyAttack` y por `restore` conserva `name` y `maxHp`. `createCombatant({ name: "Prueba", maxHp: 200 })` devuelve `{ name: "Prueba", hp: 200, maxHp: 200 }`.
-- [ ] `src/combat.js` no importa nada ni usa `window`, `document` o el canvas.
+- [x] L1. `createCombatant({ name: "Charizard" })` devuelve `{ name: "Charizard", hp: 100, maxHp: 100 }`.
+- [x] L2. Siete `applyAttack(c, TEST_ATTACK)` seguidos dejan los PS en 85, 70, 55, 40, 25, 10 y 0, con daños 15, 15, 15, 15, 15, 15 y 10.
+- [x] L3. Un octavo ataque con 0 PS devuelve `damage === 0` y `hp === 0`.
+- [x] L4. Un ataque de potencia 50 sobre 10 PS devuelve `damage === 10` y `hp === 0`.
+- [x] L5. `isFainted` es `false` con 1 PS y `true` con 0.
+- [x] L6. `restore` devuelve `hp === 100` desde 0 PS y desde 40 PS.
+- [x] L7. Con `maxHp = 100`, `hpLevel` da: 100 → `high`, 51 → `high`, 50 → `medium`, 21 → `medium`, 20 → `low`, 0 → `low`.
+- [x] L8. Con `maxHp = 200`, `hpLevel(100, 200)` es `medium` y `hpLevel(40, 200)` es `low`.
+- [x] L9. `applyAttack` y `restore` no modifican el objeto recibido.
+- [x] L10. El combatiente devuelto por `applyAttack` y por `restore` conserva `name` y `maxHp`. `createCombatant({ name: "Prueba", maxHp: 200 })` devuelve `{ name: "Prueba", hp: 200, maxHp: 200 }`.
+- [x] `src/combat.js` no importa nada ni usa `window`, `document` o el canvas.
 
 ### Navegador (`python -m http.server 8000`)
 
-- [ ] V1. Al cargar, el HUD muestra el nombre `Charizard`, la barra llena y verde, el texto `PS 100/100` y se ve la línea `H: placaje de prueba · R: restaurar`.
-- [ ] V2. Siete pulsaciones de H muestran `PS 85/100`, `70/100`, `55/100`, `40/100`, `25/100`, `10/100` y `0/100`. La barra es verde en 85, 70 y 55, amarilla en 40 y 25, y roja en 10. En 0 está vacía.
-- [ ] V3. Los avisos muestran `Placaje de prueba −15 PS` en los golpes 1 a 6 y `Placaje de prueba −10 PS` en el séptimo.
-- [ ] V4. Un golpe con PS > 0 cambia la animación a `hurt` durante unos 0,5 s, y las flechas no mueven a Charizard mientras dura.
-- [ ] V5. Si una flecha está pulsada durante `hurt` y se mantiene, Charizard camina al terminar `hurt` sin soltarla ni volver a pulsarla.
-- [ ] V6. Si no hay teclas pulsadas al terminar `hurt`, Charizard vuelve a `idle` mirando hacia la misma dirección.
-- [ ] V7. El séptimo golpe muestra `hurt` y después `sleep`, y el HUD indica `Debilitado`.
-- [ ] V8. Con 0 PS, las flechas y WASD no cambian la posición de Charizard ni su animación.
-- [ ] V9. Con 0 PS, tres pulsaciones de H dejan `PS 0/100`, sin aviso ni cambio de animación.
-- [ ] V10. R desde debilitado muestra `PS 100/100` en verde, Charizard en `idle` con la dirección previa, sin aviso residual, y se mueve con normalidad.
-- [ ] V11. R durante `hurt` cancela la reacción: Charizard queda en `idle` con `PS 100/100`.
-- [ ] V12. Mantener H pulsada aplica un solo golpe (−15).
-- [ ] V13. Con la ventana ancha, estrecha y baja, la barra sigue arriba a la izquierda del juego con el mismo tamaño legible.
-- [ ] V14. No hay regresiones del MVP: 8 direcciones, diagonal normalizada, límites del fondo, sombra, `blur` que detiene el movimiento y flechas que no desplazan la página.
-- [ ] V15. Si se renombra temporalmente `assets/spriteChatizard/Hurt-Anim.png` o `Sleep-Anim.png`, el canvas muestra `No se pudo cargar: <ruta>`.
-- [ ] V16. Los pies de Charizard no cambian de posición en pantalla al pasar entre `idle`, `walk`, `hurt` y `sleep`.
-- [ ] La consola no muestra errores durante el funcionamiento normal (V1–V14 y V16). En V15 el 404 de la imagen renombrada y el error de carga registrado son esperados.
-- [ ] `spritesheet.js` no tiene cambios.
+- [x] V1. Al cargar, el HUD muestra el nombre `Charizard`, la barra llena y verde, el texto `PS 100/100` y se ve la línea `H: placaje de prueba · R: restaurar`.
+- [x] V2. Siete pulsaciones de H muestran `PS 85/100`, `70/100`, `55/100`, `40/100`, `25/100`, `10/100` y `0/100`. La barra es verde en 85, 70 y 55, amarilla en 40 y 25, y roja en 10. En 0 está vacía.
+- [x] V3. Los avisos muestran `Placaje de prueba −15 PS` en los golpes 1 a 6 y `Placaje de prueba −10 PS` en el séptimo.
+- [x] V4. Un golpe con PS > 0 cambia la animación a `hurt` durante unos 0,5 s, y las flechas no mueven a Charizard mientras dura.
+- [x] V5. Si una flecha está pulsada durante `hurt` y se mantiene, Charizard camina al terminar `hurt` sin soltarla ni volver a pulsarla.
+- [x] V6. Si no hay teclas pulsadas al terminar `hurt`, Charizard vuelve a `idle` mirando hacia la misma dirección.
+- [x] V7. El séptimo golpe muestra `hurt` y después `sleep`, y el HUD indica `Debilitado`.
+- [x] V8. Con 0 PS, las flechas y WASD no cambian la posición de Charizard ni su animación.
+- [x] V9. Con 0 PS, tres pulsaciones de H dejan `PS 0/100`, sin aviso ni cambio de animación.
+- [x] V10. R desde debilitado muestra `PS 100/100` en verde, Charizard en `idle` con la dirección previa, sin aviso residual, y se mueve con normalidad.
+- [x] V11. R durante `hurt` cancela la reacción: Charizard queda en `idle` con `PS 100/100`.
+- [x] V12. Mantener H pulsada aplica un solo golpe (−15).
+- [x] V13. Con la ventana ancha, estrecha y baja, la barra sigue arriba a la izquierda del juego con el mismo tamaño legible.
+- [x] V14. No hay regresiones del MVP: 8 direcciones, diagonal normalizada, límites del fondo, sombra, `blur` que detiene el movimiento y flechas que no desplazan la página.
+- [x] V15. Si se renombra temporalmente `assets/spriteChatizard/Hurt-Anim.png` o `Sleep-Anim.png`, el canvas muestra `No se pudo cargar: <ruta>`.
+- [x] V16. Los pies de Charizard no cambian de posición en pantalla al pasar entre `idle`, `walk`, `hurt` y `sleep`.
+- [x] La consola no muestra errores durante el funcionamiento normal (V1–V14 y V16). En V15 el 404 de la imagen renombrada y el error de carga registrado son esperados.
+- [x] `spritesheet.js` no tiene cambios.
 
 ## Decisiones
 
