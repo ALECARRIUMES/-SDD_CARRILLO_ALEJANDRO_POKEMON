@@ -1,5 +1,5 @@
 import { BACKGROUNDS, CHARIZARD, getFrame, frameIndexAt } from "../spritesheet.js";
-import { TEST_ATTACK, createCombatant, applyAttack, isFainted, hpLevel } from "./combat.js";
+import { TEST_ATTACK, createCombatant, applyAttack, isFainted, restore, hpLevel } from "./combat.js";
 
 // Constantes ajustables
 const PLAYER_SCALE = 4; // multiplicador del sprite, en píxeles del fondo
@@ -19,9 +19,9 @@ const player = {
   x: WORLD.w / 2, // posición de los PIES (punto shadow), en píxeles del fondo
   y: WORLD.h / 2,
   dir: "down", // una de DIRECTIONS
-  anim: "idle", // 'idle' | 'walk' | 'hurt'
+  anim: "idle", // 'idle' | 'walk' | 'hurt' | 'sleep'
   animMs: 0, // tiempo transcurrido en la animación actual
-  state: "normal", // 'normal' | 'hurt'
+  state: "normal", // 'normal' | 'hurt' | 'fainted'
   hurtMs: 0, // tiempo restante de hurt
 };
 
@@ -53,6 +53,10 @@ window.addEventListener("keydown", (event) => {
     if (!event.repeat) testAttack();
     return;
   }
+  if (event.code === "KeyR") {
+    if (!event.repeat) restoreCharizard();
+    return;
+  }
   if (!GAME_KEYS.has(event.code)) return;
   event.preventDefault(); // las flechas no desplazan la página
   keys.add(event.code);
@@ -78,7 +82,7 @@ canvas.height = WORLD.h;
 ctx.imageSmoothingEnabled = false;
 
 // Imágenes cargadas
-const images = { fondo1: null, idle: null, walk: null, hurt: null };
+const images = { fondo1: null, idle: null, walk: null, hurt: null, sleep: null };
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -155,7 +159,8 @@ function renderHud() {
   hud.name.textContent = charizard.name;
   hud.fill.style.width = `${(charizard.hp / charizard.maxHp) * 100}%`;
   hud.fill.style.backgroundColor = HP_COLORS[hpLevel(charizard.hp, charizard.maxHp)];
-  hud.text.textContent = `PS ${charizard.hp}/${charizard.maxHp}`;
+  const fainted = player.state === "fainted" ? " · Debilitado" : "";
+  hud.text.textContent = `PS ${charizard.hp}/${charizard.maxHp}${fainted}`;
 }
 
 // Placaje de prueba: con 0 PS no hay daño ni aviso.
@@ -169,6 +174,18 @@ function testAttack() {
   player.state = "hurt";
   player.hurtMs = HURT_MS;
   setAnim("hurt");
+}
+
+// R: PS completos y vuelta a idle con la misma dirección, desde cualquier estado.
+// keys no se toca: si hay una flecha pulsada, el siguiente frame camina.
+function restoreCharizard() {
+  charizard = restore(charizard);
+  popup = null;
+  player.state = "normal";
+  player.hurtMs = 0;
+  setAnim("idle");
+  player.animMs = 0;
+  renderHud();
 }
 
 // Aviso sobre la cabeza: sube y se desvanece durante POPUP_MS
@@ -216,20 +233,25 @@ function update(dtMs) {
     if (popup.ms >= POPUP_MS) popup = null;
   }
 
-  // Durante hurt no se mueve. Al terminar, este mismo frame sigue abajo:
-  // walk o idle según el teclado, o el bloqueo si se quedó sin PS
+  // Durante hurt no se mueve. Al terminar: debilitado si se quedó sin PS;
+  // si no, este mismo frame sigue abajo con walk o idle según el teclado
   if (player.state === "hurt") {
     player.hurtMs -= dtMs;
     if (player.hurtMs > 0) {
       player.animMs += dtMs;
       return;
     }
-    player.state = "normal";
+    if (isFainted(charizard)) {
+      player.state = "fainted";
+      setAnim("sleep");
+      renderHud();
+    } else {
+      player.state = "normal";
+    }
   }
 
-  // Con 0 PS no se mueve: queda en idle con su dirección (sleep llega en el paso 5)
-  if (isFainted(charizard)) {
-    setAnim("idle");
+  // Debilitado: duerme sin moverse hasta que R lo restaure
+  if (player.state === "fainted") {
     player.animMs += dtMs;
     return;
   }
@@ -284,6 +306,7 @@ const sources = {
   idle: CHARIZARD.idle.src.anim,
   walk: CHARIZARD.walk.src.anim,
   hurt: CHARIZARD.hurt.src.anim,
+  sleep: CHARIZARD.sleep.src.anim,
 };
 const results = await Promise.allSettled(Object.values(sources).map(loadImage));
 const errors = results.filter((r) => r.status === "rejected").map((r) => r.reason);
