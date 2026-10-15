@@ -61,9 +61,29 @@
       .hud-fill {
         height: 100%;
       }
+      /* Resaltado del HUD de quien tiene el turno; outline no cambia el tamaño del HUD */
+      .hud.active {
+        outline: 3px solid #ffeb3b;
+      }
       #hud-controls {
         font-size: 13px;
         opacity: 0.8;
+      }
+      /* Banner abajo en el centro: no se superpone con los HUD de arriba */
+      #banner {
+        position: absolute;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        box-sizing: border-box;
+        max-width: calc(100% - 24px);
+        padding: 8px 14px;
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.7);
+        color: #fff;
+        font: bold 16px/1.25 sans-serif;
+        text-align: center;
+        pointer-events: none;
       }
     </style>
   </head>
@@ -81,6 +101,7 @@
         <div class="hud-bar"><div id="hud-rival-fill" class="hud-fill"></div></div>
         <div id="hud-rival-text"></div>
       </div>
+      <div id="banner" hidden></div>
     </div>
     <script type="module" src="src/main.js"></script>
   </body>

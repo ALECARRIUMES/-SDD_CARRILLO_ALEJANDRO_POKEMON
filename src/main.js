@@ -1,5 +1,6 @@
 import { BACKGROUNDS, CHARIZARD, getFrame, frameIndexAt } from "../spritesheet.js";
 import { TEST_ATTACK, createCombatant, applyAttack, isFainted, restore, hpLevel } from "./combat.js";
+import { canStartBattle, createBattle } from "./battle.js";
 import { recolorPixels } from "./recolor.js";
 
 // Constantes ajustables
@@ -16,6 +17,8 @@ const POPUP_RISE = 120; // cuánto sube el aviso durante su vida, en píxeles de
 const WORLD = { w: BACKGROUNDS.fondo1.sw, h: BACKGROUNDS.fondo1.sh }; // 2752 × 1536
 
 const RIVAL_POS = { x: WORLD.w * 0.75, y: WORLD.h / 2 }; // pies del rival
+const BATTLE_RANGE = 400; // distancia máxima entre pies para combatir
+const BATTLE_OFFSET = 320; // en combate, Charizard se coloca en (RIVAL_POS.x − BATTLE_OFFSET, RIVAL_POS.y)
 
 // Estado del jugador
 const player = {
@@ -43,6 +46,17 @@ const rivalEntity = {
 let charizard = createCombatant({ name: "Charizard" });
 let rival = createCombatant({ name: "Charizard rival" });
 
+// Combate
+let mode = "explore"; // 'explore' | 'battle'
+let battle = null; // estado de battle.js mientras mode === 'battle'
+let stage = null; // 'awaitInput' | 'playerAttacking' | 'rivalWaiting' | 'rivalAttacking' | 'resolving' | 'result'
+let explorePose = null; // { x, y, dir } de Charizard antes del combate
+
+// Única lectura de los PS: en combate manda battle; en exploración, los combatientes de exploración
+function hpSource() {
+  return battle ? { player: battle.player, rival: battle.rival } : { player: charizard, rival };
+}
+
 // Aviso flotante (uno a la vez; uno nuevo reemplaza al anterior)
 let popup = null; // { text: "Placaje de prueba −15 PS", ms: 0 }
 
@@ -63,13 +77,18 @@ function isPressed(sense) {
 }
 
 window.addEventListener("keydown", (event) => {
-  // H: un golpe por pulsación; mantenerla no repite el ataque
+  // H y R: una vez por pulsación, solo en exploración
   if (event.code === "KeyH") {
-    if (!event.repeat) testAttack();
+    if (!event.repeat && mode === "explore") testAttack();
     return;
   }
   if (event.code === "KeyR") {
-    if (!event.repeat) restoreCharizard();
+    if (!event.repeat && mode === "explore") restoreCharizard();
+    return;
+  }
+  // Enter: inicia el combate si se cumplen las condiciones
+  if (event.code === "Enter" || event.code === "NumpadEnter") {
+    if (!event.repeat && mode === "explore" && canEnterBattle()) startBattle();
     return;
   }
   if (!GAME_KEYS.has(event.code)) return;
@@ -199,8 +218,62 @@ function renderHudFor(els, combatant, entity) {
 }
 
 function renderHud() {
-  renderHudFor(hud, charizard, player);
-  renderHudFor(rivalHud, rival, rivalEntity);
+  const hp = hpSource();
+  renderHudFor(hud, hp.player, player);
+  renderHudFor(rivalHud, hp.rival, rivalEntity);
+}
+
+// Banner, resaltado de turno y línea de controles. Se evalúa cada frame,
+// pero solo toca el DOM cuando algo cambia.
+const banner = document.getElementById("banner");
+const hudControls = document.getElementById("hud-controls");
+
+function setBanner(text) {
+  if (banner.textContent !== text) banner.textContent = text;
+  banner.hidden = text === "";
+}
+
+function bannerText() {
+  if (mode === "explore") {
+    if (!inBattleRange()) return "";
+    if (!canStartBattle(charizard, rival)) return "R: restaurar para combatir";
+    return player.state === "hurt" ? "" : "Enter: combatir";
+  }
+  if (stage === "awaitInput" || stage === "playerAttacking") return "Turno de Charizard — Espacio: Arañazo";
+  return "";
+}
+
+function renderUi() {
+  setBanner(bannerText());
+  const playerTurn = mode === "battle" && (stage === "awaitInput" || stage === "playerAttacking");
+  const rivalTurn = mode === "battle" && (stage === "rivalWaiting" || stage === "rivalAttacking");
+  hud.root.classList.toggle("active", playerTurn);
+  rivalHud.root.classList.toggle("active", rivalTurn);
+  hudControls.hidden = mode === "battle";
+}
+
+// Distancia entre pies
+function inBattleRange() {
+  return Math.hypot(player.x - RIVAL_POS.x, player.y - RIVAL_POS.y) < BATTLE_RANGE;
+}
+
+function canEnterBattle() {
+  return inBattleRange() && canStartBattle(charizard, rival) && player.state !== "hurt";
+}
+
+// Guarda la pose de exploración y coloca a Charizard frente al rival.
+// El combate recibe los PS actuales, sin restaurarlos.
+function startBattle() {
+  explorePose = { x: player.x, y: player.y, dir: player.dir };
+  player.x = RIVAL_POS.x - BATTLE_OFFSET;
+  player.y = RIVAL_POS.y;
+  player.dir = "right";
+  setAnim("idle");
+  player.animMs = 0;
+  battle = createBattle(charizard, rival);
+  mode = "battle";
+  stage = "awaitInput";
+  renderHud();
 }
 
 // Placaje de prueba: con 0 PS no hay daño ni aviso.
@@ -296,6 +369,12 @@ function update(dtMs) {
     return;
   }
 
+  // En combate no se mueve: queda en su sitio frente al rival
+  if (mode === "battle") {
+    player.animMs += dtMs;
+    return;
+  }
+
   // Vector de movimiento; teclas opuestas se anulan
   let vx = (isPressed("right") ? 1 : 0) - (isPressed("left") ? 1 : 0);
   let vy = (isPressed("down") ? 1 : 0) - (isPressed("up") ? 1 : 0);
@@ -346,6 +425,7 @@ function loop(timestamp) {
   update(dtMs);
   updateRival(dtMs);
   render();
+  renderUi();
   requestAnimationFrame(loop);
 }
 
