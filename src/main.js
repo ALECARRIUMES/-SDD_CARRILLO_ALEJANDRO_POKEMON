@@ -1,5 +1,5 @@
 import { BACKGROUNDS, CHARIZARD, getFrame, frameIndexAt } from "../spritesheet.js";
-import { createCombatant, hpLevel } from "./combat.js";
+import { TEST_ATTACK, createCombatant, applyAttack, isFainted, hpLevel } from "./combat.js";
 
 // Constantes ajustables
 const PLAYER_SCALE = 4; // multiplicador del sprite, en píxeles del fondo
@@ -7,6 +7,8 @@ const PLAYER_SPEED = 600; // píxeles del fondo por segundo
 const MARGIN = { x: 100, top: 260, bottom: 20 }; // margen de los pies respecto a cada borde
 const SHADOW_ELLIPSE = { rx: 64, ry: 20, alpha: 0.35 }; // sombra bajo los pies, en píxeles del fondo
 const HP_COLORS = { high: "#4caf50", medium: "#fbc02d", low: "#e53935" }; // relleno de la barra por nivel
+const POPUP_MS = 1000; // vida del aviso flotante
+const POPUP_RISE = 120; // cuánto sube el aviso durante su vida, en píxeles del fondo
 
 // Mundo: se lee de BACKGROUNDS.fondo1, no se escribe a mano
 const WORLD = { w: BACKGROUNDS.fondo1.sw, h: BACKGROUNDS.fondo1.sh }; // 2752 × 1536
@@ -22,6 +24,9 @@ const player = {
 
 // Estado de combate de Charizard
 let charizard = createCombatant({ name: "Charizard" });
+
+// Aviso flotante (uno a la vez; uno nuevo reemplaza al anterior)
+let popup = null; // { text: "Placaje de prueba −15 PS", ms: 0 }
 
 // Teclas pulsadas, por event.code ('ArrowUp', 'KeyW', ...)
 const keys = new Set();
@@ -40,6 +45,11 @@ function isPressed(sense) {
 }
 
 window.addEventListener("keydown", (event) => {
+  // H: un golpe por pulsación; mantenerla no repite el ataque
+  if (event.code === "KeyH") {
+    if (!event.repeat) testAttack();
+    return;
+  }
   if (!GAME_KEYS.has(event.code)) return;
   event.preventDefault(); // las flechas no desplazan la página
   keys.add(event.code);
@@ -108,8 +118,12 @@ function drawShadow() {
   ctx.restore();
 }
 
+function playerFrame() {
+  return getFrame(player.anim, player.dir, frameIndexAt(player.anim, player.animMs));
+}
+
 function drawPlayer() {
-  const frame = getFrame(player.anim, player.dir, frameIndexAt(player.anim, player.animMs));
+  const frame = playerFrame();
   const feet = feetOf(frame);
   const dx = player.x - feet.x * PLAYER_SCALE;
   const dy = player.y - feet.y * PLAYER_SCALE;
@@ -141,6 +155,37 @@ function renderHud() {
   hud.text.textContent = `PS ${charizard.hp}/${charizard.maxHp}`;
 }
 
+// Placaje de prueba: con 0 PS no hay daño ni aviso
+function testAttack() {
+  if (isFainted(charizard)) return;
+  const { combatant, damage } = applyAttack(charizard, TEST_ATTACK);
+  charizard = combatant;
+  popup = { text: `${TEST_ATTACK.name} −${damage} PS`, ms: 0 };
+  renderHud();
+}
+
+// Aviso sobre la cabeza: sube y se desvanece durante POPUP_MS
+function drawPopup() {
+  if (!popup) return;
+  const frame = playerFrame();
+  const feet = feetOf(frame);
+  const head = frame.head ?? { x: feet.x, y: 0 };
+  const t = popup.ms / POPUP_MS;
+  const x = player.x + (head.x - feet.x) * PLAYER_SCALE;
+  const y = player.y + (head.y - feet.y) * PLAYER_SCALE - 40 - t * POPUP_RISE;
+  ctx.save();
+  ctx.globalAlpha = 1 - t;
+  ctx.font = "bold 56px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = "#000";
+  ctx.strokeText(popup.text, x, y);
+  ctx.fillStyle = "#fff";
+  ctx.fillText(popup.text, x, y);
+  ctx.restore();
+}
+
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -159,6 +204,18 @@ function setAnim(anim) {
 }
 
 function update(dtMs) {
+  if (popup) {
+    popup.ms += dtMs;
+    if (popup.ms >= POPUP_MS) popup = null;
+  }
+
+  // Con 0 PS no se mueve: queda en idle con su dirección (sleep llega en el paso 5)
+  if (isFainted(charizard)) {
+    setAnim("idle");
+    player.animMs += dtMs;
+    return;
+  }
+
   // Vector de movimiento; teclas opuestas se anulan
   let vx = (isPressed("right") ? 1 : 0) - (isPressed("left") ? 1 : 0);
   let vy = (isPressed("down") ? 1 : 0) - (isPressed("up") ? 1 : 0);
@@ -186,6 +243,7 @@ function render() {
   drawBackground();
   drawShadow(); // antes que el sprite: queda por detrás
   drawPlayer();
+  drawPopup(); // encima del sprite
 }
 
 // Bucle principal: el delta sale del timestamp de requestAnimationFrame
