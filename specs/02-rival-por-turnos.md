@@ -1,6 +1,6 @@
 # SPEC 02 — Rival por turnos
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** SPEC 00 (`00-mvp-charizard-movimiento.md`), SPEC 01 (`01-barra-de-vida.md`)
 > **Fecha:** 2026-10-14
 > **Objetivo:** Añadir un "Charizard rival" fijo en el escenario contra el que Charizard combate por turnos (Arañazo 25 contra Placaje 20) hasta que uno queda debilitado.
@@ -218,51 +218,51 @@ Describen el producto final, al terminar el paso 7.
 
 ### Lógica (`node --test`)
 
-- [ ] B1. `createBattle(c40, r100)` devuelve `phase === "playerTurn"`, `player.hp === 40` y `rival.hp === 100`: no restaura los PS.
-- [ ] B2. Tras `playerAttack` la fase es `rivalTurn`; tras `rivalAttack` vuelve a `playerTurn`.
-- [ ] B3. Desde 100/100, alternando ataques: rival 75, Charizard 80, rival 50, Charizard 60, rival 25, Charizard 40, rival 0, y la fase es `victory`.
-- [ ] B4. Desde Charizard 40 y rival 100: rival 75, Charizard 20, rival 50, Charizard 0, y la fase es `defeat`.
-- [ ] B5. `rivalAttack` en `playerTurn` y `playerAttack` en `rivalTurn` devuelven `accepted: false`, `damage: 0` y el mismo objeto de combate.
-- [ ] B6. En `victory` y en `defeat`, `playerAttack` y `rivalAttack` devuelven `accepted: false` y `damage: 0`.
-- [ ] B7. Tras el golpe letal de Charizard, `rivalAttack` se rechaza y los PS de Charizard no cambian.
-- [ ] B8. Ninguna función de `battle.js` modifica el combate ni los combatientes recibidos.
-- [ ] B9. `finishBattle` devuelve `null` en `playerTurn` y `rivalTurn`. En un combate terminado devuelve los PS finales sin restaurar, conservando `name` y `maxHp`.
-- [ ] B10. `canStartBattle` es `false` si cualquiera de los dos tiene 0 PS y `true` si los dos tienen PS.
-- [ ] B11. `src/battle.js` solo importa `./combat.js` y no usa `window`, `document` ni el canvas.
-- [ ] R1. `recolorPixels` convierte `[240, 128, 48, 255]` en `[48, 128, 240, 255]`.
-- [ ] R2. El canal A no cambia en ningún píxel: `[240, 128, 48, 100]` da `[48, 128, 240, 100]`.
-- [ ] R3. Los píxeles totalmente transparentes no cambian: `[0, 0, 0, 0]` y `[240, 128, 48, 0]` se devuelven idénticos.
-- [ ] R4. El resultado es un array nuevo de la misma longitud y el array recibido queda intacto.
-- [ ] `src/recolor.js` no importa nada ni usa `window`, `document` ni el canvas.
-- [ ] Las 11 pruebas de la SPEC 01 siguen pasando.
+- [x] B1. `createBattle(c40, r100)` devuelve `phase === "playerTurn"`, `player.hp === 40` y `rival.hp === 100`: no restaura los PS.
+- [x] B2. Tras `playerAttack` la fase es `rivalTurn`; tras `rivalAttack` vuelve a `playerTurn`.
+- [x] B3. Desde 100/100, alternando ataques: rival 75, Charizard 80, rival 50, Charizard 60, rival 25, Charizard 40, rival 0, y la fase es `victory`.
+- [x] B4. Desde Charizard 40 y rival 100: rival 75, Charizard 20, rival 50, Charizard 0, y la fase es `defeat`.
+- [x] B5. `rivalAttack` en `playerTurn` y `playerAttack` en `rivalTurn` devuelven `accepted: false`, `damage: 0` y el mismo objeto de combate.
+- [x] B6. En `victory` y en `defeat`, `playerAttack` y `rivalAttack` devuelven `accepted: false` y `damage: 0`.
+- [x] B7. Tras el golpe letal de Charizard, `rivalAttack` se rechaza y los PS de Charizard no cambian.
+- [x] B8. Ninguna función de `battle.js` modifica el combate ni los combatientes recibidos.
+- [x] B9. `finishBattle` devuelve `null` en `playerTurn` y `rivalTurn`. En un combate terminado devuelve los PS finales sin restaurar, conservando `name` y `maxHp`.
+- [x] B10. `canStartBattle` es `false` si cualquiera de los dos tiene 0 PS y `true` si los dos tienen PS.
+- [x] B11. `src/battle.js` solo importa `./combat.js` y no usa `window`, `document` ni el canvas.
+- [x] R1. `recolorPixels` convierte `[240, 128, 48, 255]` en `[48, 128, 240, 255]`.
+- [x] R2. El canal A no cambia en ningún píxel: `[240, 128, 48, 100]` da `[48, 128, 240, 100]`.
+- [x] R3. Los píxeles totalmente transparentes no cambian: `[0, 0, 0, 0]` y `[240, 128, 48, 0]` se devuelven idénticos.
+- [x] R4. El resultado es un array nuevo de la misma longitud y el array recibido queda intacto.
+- [x] `src/recolor.js` no importa nada ni usa `window`, `document` ni el canvas.
+- [x] Las 11 pruebas de la SPEC 01 siguen pasando.
 
 ### Navegador (`python -m http.server 8000`)
 
-- [ ] V1. Al cargar, el rival se ve azul en `RIVAL_POS`, en `idle` mirando a la izquierda, y su HUD arriba a la derecha muestra `Charizard rival`, la barra verde y `PS 100/100`. Charizard conserva sus colores originales.
-- [ ] V2. Los pies del rival no cambian de posición en pantalla al pasar entre `idle`, `attack`, `hurt` y `sleep`.
-- [ ] V3. Al cargar no aparece el banner. A menos de 400 px del rival aparece `Enter: combatir` y desaparece al alejarse.
-- [ ] V4. En rango con Charizard o el rival debilitado, el banner muestra `R: restaurar para combatir` y Enter no inicia el combate.
-- [ ] V5. En rango con Charizard en `hurt`, Enter no inicia el combate.
-- [ ] V6. Enter en rango inicia el combate: Charizard aparece frente al rival mirando a la derecha, el banner muestra `Turno de Charizard — Espacio: Arañazo`, su HUD está resaltado y la línea `H: placaje de prueba · R: restaurar` está oculta.
-- [ ] V7. En combate, flechas, WASD, H y R no tienen efecto, y Enter no sale de un combate activo.
-- [ ] V8. Espacio reproduce `attack` en Charizard. La barra del rival baja a `75/100` en el impacto, no al pulsar. Aparece `Arañazo −25 PS` sobre el rival, que reproduce `hurt`.
-- [ ] V9. Mantener Espacio, pulsarlo varias veces durante la animación o durante el turno del rival produce un solo ataque por turno.
-- [ ] V10. Al terminar la animación de ataque de Charizard empieza `rivalWaiting`: el banner muestra `Turno de Charizard rival…` y el HUD del rival se resalta, sin cambios en los PS. Unos 0,8 s después el rival empieza su ataque una sola vez; Charizard baja a `80/100` y aparece `Placaje −20 PS` al alcanzar el evento `hit` de esa animación, no al empezar la espera.
-- [ ] V11. Victoria desde 100: el rival pasa por 75, 50, 25 y 0, y Charizard por 80, 60 y 40. El rival hace `hurt` y luego `sleep`, su HUD indica `Debilitado`, no responde, y después aparece `¡Charizard gana! — Enter: volver`.
-- [ ] V12. Derrota: H ×4 en exploración (40 PS), esperar a que termine `hurt` e iniciar el combate. El rival pasa por 75 y 50, y Charizard por 20 y 0. Charizard hace `hurt` y luego `sleep`, y después aparece `Charizard se ha debilitado — Enter: volver`.
-- [ ] V13. Enter antes de que aparezca el banner de resultado no hace nada. Con el banner visible, Enter vuelve a exploración: Charizard regresa a la posición y la dirección que tenía antes del combate y los dos HUD conservan sus PS.
-- [ ] V14. Mantener Enter pulsado al volver no inicia otro combate.
-- [ ] V15. Tras la victoria, el rival sigue en `sleep` y Charizard se mueve con `PS 40/100`. Tras la derrota, Charizard sigue en `sleep` y no se mueve.
-- [ ] V16. R en exploración deja a los dos en `PS 100/100`, el rival en `idle` mirando a la izquierda y Charizard en `idle`. Se puede iniciar un combate nuevo y repetir V11.
-- [ ] V17. En exploración, la SPEC 01 funciona igual: H con su secuencia y `hurt`, debilitamiento a 0 PS y R.
-- [ ] V18. No hay regresiones del MVP: 8 direcciones, diagonal normalizada, límites del fondo, sombra, `blur` y flechas que no desplazan la página.
-- [ ] V19. Al caminar por delante y por detrás del rival, se dibuja delante quien tiene los pies más abajo.
-- [ ] V20. Si se renombra temporalmente `assets/spriteChatizard/Attack-Anim.png`, el canvas muestra `No se pudo cargar: assets/spriteChatizard/Attack-Anim.png`.
-- [ ] V21. Cambiar de ventana durante el combate no lo pausa ni rompe los turnos. Al volver, ninguna tecla de movimiento queda activa.
-- [ ] V22. Con la ventana ancha, baja y estrecha (hasta 480 px de ancho), los dos HUD siguen arriba en sus esquinas sin tocarse, el banner sigue abajo en el centro sin cubrir ningún HUD, y los textos se leen completos.
-- [ ] V23. Tras una victoria o una derrota, R en exploración deja a los dos sin `sleep` ni `hurt`, sin avisos flotantes y sin `Debilitado`. Si se pulsa H justo antes de R, R cancela el `hurt` de Charizard.
-- [ ] La consola no muestra errores durante el funcionamiento normal. En V20 el 404 de la imagen renombrada y el error de carga son esperados.
-- [ ] `spritesheet.js`, `src/combat.js` y `specs/01-barra-de-vida.md` no tienen cambios.
+- [x] V1. Al cargar, el rival se ve azul en `RIVAL_POS`, en `idle` mirando a la izquierda, y su HUD arriba a la derecha muestra `Charizard rival`, la barra verde y `PS 100/100`. Charizard conserva sus colores originales.
+- [x] V2. Los pies del rival no cambian de posición en pantalla al pasar entre `idle`, `attack`, `hurt` y `sleep`.
+- [x] V3. Al cargar no aparece el banner. A menos de 400 px del rival aparece `Enter: combatir` y desaparece al alejarse.
+- [x] V4. En rango con Charizard o el rival debilitado, el banner muestra `R: restaurar para combatir` y Enter no inicia el combate.
+- [x] V5. En rango con Charizard en `hurt`, Enter no inicia el combate.
+- [x] V6. Enter en rango inicia el combate: Charizard aparece frente al rival mirando a la derecha, el banner muestra `Turno de Charizard — Espacio: Arañazo`, su HUD está resaltado y la línea `H: placaje de prueba · R: restaurar` está oculta.
+- [x] V7. En combate, flechas, WASD, H y R no tienen efecto, y Enter no sale de un combate activo.
+- [x] V8. Espacio reproduce `attack` en Charizard. La barra del rival baja a `75/100` en el impacto, no al pulsar. Aparece `Arañazo −25 PS` sobre el rival, que reproduce `hurt`.
+- [x] V9. Mantener Espacio, pulsarlo varias veces durante la animación o durante el turno del rival produce un solo ataque por turno.
+- [x] V10. Al terminar la animación de ataque de Charizard empieza `rivalWaiting`: el banner muestra `Turno de Charizard rival…` y el HUD del rival se resalta, sin cambios en los PS. Unos 0,8 s después el rival empieza su ataque una sola vez; Charizard baja a `80/100` y aparece `Placaje −20 PS` al alcanzar el evento `hit` de esa animación, no al empezar la espera.
+- [x] V11. Victoria desde 100: el rival pasa por 75, 50, 25 y 0, y Charizard por 80, 60 y 40. El rival hace `hurt` y luego `sleep`, su HUD indica `Debilitado`, no responde, y después aparece `¡Charizard gana! — Enter: volver`.
+- [x] V12. Derrota: H ×4 en exploración (40 PS), esperar a que termine `hurt` e iniciar el combate. El rival pasa por 75 y 50, y Charizard por 20 y 0. Charizard hace `hurt` y luego `sleep`, y después aparece `Charizard se ha debilitado — Enter: volver`.
+- [x] V13. Enter antes de que aparezca el banner de resultado no hace nada. Con el banner visible, Enter vuelve a exploración: Charizard regresa a la posición y la dirección que tenía antes del combate y los dos HUD conservan sus PS.
+- [x] V14. Mantener Enter pulsado al volver no inicia otro combate.
+- [x] V15. Tras la victoria, el rival sigue en `sleep` y Charizard se mueve con `PS 40/100`. Tras la derrota, Charizard sigue en `sleep` y no se mueve.
+- [x] V16. R en exploración deja a los dos en `PS 100/100`, el rival en `idle` mirando a la izquierda y Charizard en `idle`. Se puede iniciar un combate nuevo y repetir V11.
+- [x] V17. En exploración, la SPEC 01 funciona igual: H con su secuencia y `hurt`, debilitamiento a 0 PS y R.
+- [x] V18. No hay regresiones del MVP: 8 direcciones, diagonal normalizada, límites del fondo, sombra, `blur` y flechas que no desplazan la página.
+- [x] V19. Al caminar por delante y por detrás del rival, se dibuja delante quien tiene los pies más abajo.
+- [x] V20. Si se renombra temporalmente `assets/spriteChatizard/Attack-Anim.png`, el canvas muestra `No se pudo cargar: assets/spriteChatizard/Attack-Anim.png`.
+- [x] V21. Cambiar de ventana durante el combate no lo pausa ni rompe los turnos. Al volver, ninguna tecla de movimiento queda activa.
+- [x] V22. Con la ventana ancha, baja y estrecha (hasta 480 px de ancho), los dos HUD siguen arriba en sus esquinas sin tocarse, el banner sigue abajo en el centro sin cubrir ningún HUD, y los textos se leen completos.
+- [x] V23. Tras una victoria o una derrota, R en exploración deja a los dos sin `sleep` ni `hurt`, sin avisos flotantes y sin `Debilitado`. Si se pulsa H justo antes de R, R cancela el `hurt` de Charizard.
+- [x] La consola no muestra errores durante el funcionamiento normal. En V20 el 404 de la imagen renombrada y el error de carga son esperados.
+- [x] `spritesheet.js`, `src/combat.js` y `specs/01-barra-de-vida.md` no tienen cambios.
 
 ## Decisiones
 
