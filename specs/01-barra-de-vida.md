@@ -14,7 +14,7 @@ Es la base del combate de la Feature 02. La lógica de PS se separa en un módul
 **Dentro:**
 
 - Módulo `src/combat.js`, puro y sin imports, con combatiente identificado por nombre, PS, ataque, debilitamiento, restauración y nivel de color.
-- Pruebas de lógica en `tests/combat.test.js` con `node:test` y `node:assert/strict`, ejecutables con `node --test tests/`.
+- Pruebas de lógica en `tests/combat.test.js` con `node:test` y `node:assert/strict`, ejecutables con `node --test`.
 - Barra de PS en el DOM, fija arriba a la izquierda del juego, con texto exacto `PS N/100` y color verde, amarillo o rojo.
 - Tecla H: "Placaje de prueba" de potencia nominal 15. Aplica el daño efectivo.
 - Aviso flotante en el canvas sobre Charizard con el nombre del ataque y el daño efectivo.
@@ -122,7 +122,7 @@ Transiciones:
 Cada paso deja el juego funcionando y se verifica antes de su commit. Los criterios de aceptación describen el producto final; la línea **Verificación** de cada paso indica qué se comprueba al cerrarlo.
 
 1. Crear `src/combat.js` con la API del modelo de datos y `tests/combat.test.js` con los casos L1–L10. `src/main.js` no cambia.
-   **Verificación:** `node --test tests/` pasa (L1–L10 y el criterio de módulo puro). El juego se comporta igual que el MVP (V14).
+   **Verificación:** `node --test` pasa (L1–L10 y el criterio de módulo puro). El juego se comporta igual que el MVP (V14).
 
 2. Añadir el HUD: `#stage` en `index.html`, `createCombatant({ name: "Charizard" })` en `main.js` y el render de barra, color y texto con `hpLevel` y `HP_COLORS`. Todavía sin línea de controles.
    **Verificación:** se ven el nombre `Charizard` y `PS 100/100` con la barra llena y verde, sin línea de controles. V13 y V14.
@@ -138,14 +138,14 @@ Cada paso deja el juego funcionando y se verifica antes de su commit. Los criter
 5. Añadir el estado `fainted` y la tecla R: cargar `CHARIZARD.sleep.src.anim`, golpe letal `hurt` → `sleep`, texto `Debilitado`, `restore` con R y línea de controles completa `H: placaje de prueba · R: restaurar`.
    **Verificación:** V1, V7, V8, V9, V10, V11, V15 para `Sleep-Anim.png` y V16 completo. Ya no hace falta recargar para repetir la prueba.
 
-6. Actualizar `CLAUDE.md`: estructura con `src/combat.js` y `tests/`, el comando `node --test tests/` (Node ≥ 22) y los controles H y R.
+6. Actualizar `CLAUDE.md`: estructura con `src/combat.js` y `tests/`, el comando `node --test` (Node ≥ 22) y los controles H y R.
    **Verificación:** la lista completa de criterios de aceptación.
 
 ## Criterios de aceptación
 
 Describen el producto final, al terminar el paso 6.
 
-### Lógica (`node --test tests/`)
+### Lógica (`node --test`)
 
 - [ ] L1. `createCombatant({ name: "Charizard" })` devuelve `{ name: "Charizard", hp: 100, maxHp: 100 }`.
 - [ ] L2. Siete `applyAttack(c, TEST_ATTACK)` seguidos dejan los PS en 85, 70, 55, 40, 25, 10 y 0, con daños 15, 15, 15, 15, 15, 15 y 10.
