@@ -4,7 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Estado del proyecto
 
-Juego 2D en `<canvas>` con Charizard como personaje y dos fondos (bosque → volcán). Está implementado el MVP (`specs/00-mvp-charizard-movimiento.md`): Charizard se mueve por el fondo 1 con flechas/WASD en 8 direcciones, animado con `idle` y `walk`. Todo el código del juego vive en `src/main.js`, cargado desde `index.html`. No hay `package.json`, ni build, ni linter, ni tests automáticos.
+Juego 2D en `<canvas>` con Charizard como personaje y dos fondos (bosque → volcán). Están implementados:
+
+- El MVP (`specs/00-mvp-charizard-movimiento.md`): Charizard se mueve por el fondo 1 con flechas/WASD en 8 direcciones, animado con `idle` y `walk`.
+- La barra de vida (`specs/01-barra-de-vida.md`): Charizard tiene 100 PS en un HUD, los pierde con un placaje de prueba (H), reacciona con `hurt`, se debilita con `sleep` a 0 PS y se restaura con R.
+
+`index.html` contiene el canvas y el HUD, y carga `src/main.js` como módulo. No hay `package.json`, ni build, ni linter. Las únicas pruebas automáticas son las de la lógica de combate, con el runner incluido en Node.
+
+Controles: flechas/WASD para moverse · `H` "Placaje de prueba" (potencia nominal 15; el daño efectivo nunca supera los PS restantes, por eso el séptimo golpe resta 10) · `R` restaurar los PS.
 
 ## Comandos
 
@@ -14,6 +21,14 @@ Arrancar el juego (desde la raíz del proyecto) y abrir `http://localhost:8000`:
 python -m http.server 8000
 ```
 
+Ejecutar las pruebas de lógica (requiere Node ≥ 22, sin dependencias ni `package.json`):
+
+```
+node --test
+```
+
+Sin argumentos, Node encuentra `tests/combat.test.js`. No usar `node --test tests/`: en Node ≥ 22 el argumento es un patrón de archivos y una carpeta falla con `Cannot find module`.
+
 Regenerar `spritesheet.js` cuando cambien los assets (requiere Python con Pillow: `pip install pillow`):
 
 ```
@@ -22,7 +37,7 @@ python tools/gen_spritesheet.py .
 
 El argumento es la raíz del proyecto. Al terminar imprime `missing anchors: N [...]`: los frames en los que no se encontró algún píxel de anclaje.
 
-`spritesheet.js` y `src/main.js` son módulos ES (`export`/`import`), así que el juego se carga con `<script type="module">` y debe servirse por HTTP; abrir `index.html` con `file://` no funciona.
+`spritesheet.js`, `src/main.js` y `src/combat.js` son módulos ES (`export`/`import`), así que el juego se carga con `<script type="module">` y debe servirse por HTTP; abrir `index.html` con `file://` no funciona. Requisitos: Python 3 para servir el juego (y Pillow solo para regenerar `spritesheet.js`), un navegador moderno, y Node ≥ 22 solo para las pruebas.
 
 ## Arquitectura
 
@@ -37,7 +52,13 @@ spritesheet.js   (generado, ~200 KB, 1476 líneas)
         │  import
         ▼
 src/main.js      (juego; index.html lo carga como módulo)
+        ▲  import
+src/combat.js    (lógica de PS pura; tests/combat.test.js la prueba con node --test)
 ```
+
+- `src/combat.js` es puro: no importa nada ni usa `window`, `document` o el canvas, para poder probarlo en Node y reutilizarlo en la Feature 02. Exporta `MAX_HP`, `TEST_ATTACK` (`{ name: "Placaje de prueba", power: 15 }`), `createCombatant({ name, maxHp })`, `applyAttack`, `isFainted`, `restore` y `hpLevel`. Las funciones no modifican el combatiente `{ name, hp, maxHp }`: devuelven uno nuevo. `applyAttack` devuelve `{ combatant, damage }`, donde el daño efectivo es `min(power, hp)`, así que los PS nunca bajan de 0. `hpLevel` devuelve `high` (> 50 %), `medium` (> 20 %) o `low`.
+- `src/main.js` se encarga del teclado, las animaciones, el HUD y el render. `player.state` es `normal`, `hurt` (500 ms, `HURT_MS`, sin movimiento) o `fainted` (`sleep`, sin movimiento ni daño). Cada golpe reinicia `hurt`. El golpe letal pasa por `hurt` y después a `fainted`. R vuelve a `normal`/`idle` desde cualquier estado conservando la dirección. H y R ignoran `event.repeat`.
+- El HUD (nombre, barra, `PS N/100`, `Debilitado` y controles) es DOM dentro de `#stage`, en px fijos y con `pointer-events: none`, para que no se escale con el canvas. Se actualiza con `renderHud()` solo cuando cambian los PS o el estado. El aviso flotante del daño se dibuja en el canvas sobre `frame.head`.
 
 - Los assets siguen el formato PMD SpriteCollab: cada animación es una grilla donde la **columna es el frame** y la **fila es la dirección** (8 filas; `Sleep` tiene una sola y todas las direcciones apuntan a ella). El tamaño de frame cambia entre animaciones (p. ej. walk 56×72, attack 72×80).
 - El generador lee tamaños y duraciones de `AnimData.xml` y saca los anclajes buscando píxeles de color en `*-Offsets.png` (negro = `head`, verde = `center`, rojo = `leftHand`, azul = `rightHand`) y el píxel blanco de `*-Shadow.png` (`shadow`).
