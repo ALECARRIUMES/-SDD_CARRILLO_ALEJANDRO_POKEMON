@@ -7,6 +7,7 @@ const PLAYER_SPEED = 600; // píxeles del fondo por segundo
 const MARGIN = { x: 100, top: 260, bottom: 20 }; // margen de los pies respecto a cada borde
 const SHADOW_ELLIPSE = { rx: 64, ry: 20, alpha: 0.35 }; // sombra bajo los pies, en píxeles del fondo
 const HP_COLORS = { high: "#4caf50", medium: "#fbc02d", low: "#e53935" }; // relleno de la barra por nivel
+const HURT_MS = 500; // duración de la reacción; hurt (166,7 ms) se repite en bucle
 const POPUP_MS = 1000; // vida del aviso flotante
 const POPUP_RISE = 120; // cuánto sube el aviso durante su vida, en píxeles del fondo
 
@@ -18,8 +19,10 @@ const player = {
   x: WORLD.w / 2, // posición de los PIES (punto shadow), en píxeles del fondo
   y: WORLD.h / 2,
   dir: "down", // una de DIRECTIONS
-  anim: "idle", // 'idle' | 'walk'
+  anim: "idle", // 'idle' | 'walk' | 'hurt'
   animMs: 0, // tiempo transcurrido en la animación actual
+  state: "normal", // 'normal' | 'hurt'
+  hurtMs: 0, // tiempo restante de hurt
 };
 
 // Estado de combate de Charizard
@@ -75,7 +78,7 @@ canvas.height = WORLD.h;
 ctx.imageSmoothingEnabled = false;
 
 // Imágenes cargadas
-const images = { fondo1: null, idle: null, walk: null };
+const images = { fondo1: null, idle: null, walk: null, hurt: null };
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -155,13 +158,17 @@ function renderHud() {
   hud.text.textContent = `PS ${charizard.hp}/${charizard.maxHp}`;
 }
 
-// Placaje de prueba: con 0 PS no hay daño ni aviso
+// Placaje de prueba: con 0 PS no hay daño ni aviso.
+// Cada golpe (re)inicia la reacción hurt; no hay invulnerabilidad.
 function testAttack() {
   if (isFainted(charizard)) return;
   const { combatant, damage } = applyAttack(charizard, TEST_ATTACK);
   charizard = combatant;
   popup = { text: `${TEST_ATTACK.name} −${damage} PS`, ms: 0 };
   renderHud();
+  player.state = "hurt";
+  player.hurtMs = HURT_MS;
+  setAnim("hurt");
 }
 
 // Aviso sobre la cabeza: sube y se desvanece durante POPUP_MS
@@ -207,6 +214,17 @@ function update(dtMs) {
   if (popup) {
     popup.ms += dtMs;
     if (popup.ms >= POPUP_MS) popup = null;
+  }
+
+  // Durante hurt no se mueve. Al terminar, este mismo frame sigue abajo:
+  // walk o idle según el teclado, o el bloqueo si se quedó sin PS
+  if (player.state === "hurt") {
+    player.hurtMs -= dtMs;
+    if (player.hurtMs > 0) {
+      player.animMs += dtMs;
+      return;
+    }
+    player.state = "normal";
   }
 
   // Con 0 PS no se mueve: queda en idle con su dirección (sleep llega en el paso 5)
@@ -257,7 +275,7 @@ function loop(timestamp) {
   requestAnimationFrame(loop);
 }
 
-// Arranque: el bucle empieza solo cuando las tres imágenes han cargado
+// Arranque: el bucle empieza solo cuando todas las imágenes han cargado
 ctx.fillStyle = "#2e7d32"; // color liso mientras cargan
 ctx.fillRect(0, 0, WORLD.w, WORLD.h);
 
@@ -265,6 +283,7 @@ const sources = {
   fondo1: BACKGROUNDS.fondo1.src,
   idle: CHARIZARD.idle.src.anim,
   walk: CHARIZARD.walk.src.anim,
+  hurt: CHARIZARD.hurt.src.anim,
 };
 const results = await Promise.allSettled(Object.values(sources).map(loadImage));
 const errors = results.filter((r) => r.status === "rejected").map((r) => r.reason);
