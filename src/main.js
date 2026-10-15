@@ -1,6 +1,13 @@
 import { BACKGROUNDS, CHARIZARD, getFrame, frameIndexAt } from "../spritesheet.js";
 import { TEST_ATTACK, createCombatant, applyAttack, isFainted, restore, hpLevel } from "./combat.js";
-import { canStartBattle, createBattle } from "./battle.js";
+import {
+  PLAYER_ATTACK,
+  RIVAL_ATTACK,
+  canStartBattle,
+  createBattle,
+  playerAttack,
+  rivalAttack,
+} from "./battle.js";
 import { recolorPixels } from "./recolor.js";
 
 // Constantes ajustables
@@ -19,6 +26,7 @@ const WORLD = { w: BACKGROUNDS.fondo1.sw, h: BACKGROUNDS.fondo1.sh }; // 2752 ×
 const RIVAL_POS = { x: WORLD.w * 0.75, y: WORLD.h / 2 }; // pies del rival
 const BATTLE_RANGE = 400; // distancia máxima entre pies para combatir
 const BATTLE_OFFSET = 320; // en combate, Charizard se coloca en (RIVAL_POS.x − BATTLE_OFFSET, RIVAL_POS.y)
+const RIVAL_DELAY_MS = 800; // espera del rival antes de responder
 
 // Estado del jugador
 const player = {
@@ -51,14 +59,15 @@ let mode = "explore"; // 'explore' | 'battle'
 let battle = null; // estado de battle.js mientras mode === 'battle'
 let stage = null; // 'awaitInput' | 'playerAttacking' | 'rivalWaiting' | 'rivalAttacking' | 'resolving' | 'result'
 let explorePose = null; // { x, y, dir } de Charizard antes del combate
+let rivalDelay = 0; // ms restantes de rivalWaiting
 
 // Única lectura de los PS: en combate manda battle; en exploración, los combatientes de exploración
 function hpSource() {
   return battle ? { player: battle.player, rival: battle.rival } : { player: charizard, rival };
 }
 
-// Aviso flotante (uno a la vez; uno nuevo reemplaza al anterior)
-let popup = null; // { text: "Placaje de prueba −15 PS", ms: 0 }
+// Avisos flotantes: uno por combatiente; uno nuevo reemplaza al anterior del mismo combatiente
+const popups = { player: null, rival: null }; // { text: "Placaje de prueba −15 PS", ms: 0 }
 
 // Teclas pulsadas, por event.code ('ArrowUp', 'KeyW', ...)
 const keys = new Set();
@@ -84,6 +93,12 @@ window.addEventListener("keydown", (event) => {
   }
   if (event.code === "KeyR") {
     if (!event.repeat && mode === "explore") restoreCharizard();
+    return;
+  }
+  // Espacio: Arañazo, solo en combate; nunca desplaza la página
+  if (event.code === "Space") {
+    event.preventDefault();
+    if (!event.repeat && mode === "battle") playerAction();
     return;
   }
   // Enter: inicia el combate si se cumplen las condiciones
@@ -240,6 +255,7 @@ function bannerText() {
     return player.state === "hurt" ? "" : "Enter: combatir";
   }
   if (stage === "awaitInput" || stage === "playerAttacking") return "Turno de Charizard — Espacio: Arañazo";
+  if (stage === "rivalWaiting" || stage === "rivalAttacking") return "Turno de Charizard rival…";
   return "";
 }
 
@@ -268,12 +284,52 @@ function startBattle() {
   player.x = RIVAL_POS.x - BATTLE_OFFSET;
   player.y = RIVAL_POS.y;
   player.dir = "right";
-  setAnim("idle");
+  setAnim(player, "idle");
   player.animMs = 0;
   battle = createBattle(charizard, rival);
   mode = "battle";
   stage = "awaitInput";
   renderHud();
+}
+
+// Golpe recibido: aviso con el daño efectivo sobre el defensor y reacción hurt
+function receiveHit(entity, popupKey, attack, damage) {
+  popups[popupKey] = { text: `${attack.name} −${damage} PS`, ms: 0 };
+  entity.state = "hurt";
+  entity.hurtMs = HURT_MS;
+  setAnim(entity, "hurt");
+  renderHud();
+}
+
+// Espacio: Arañazo solo en awaitInput y con Charizard fuera de hurt.
+// Paso 4: el daño es inmediato y el retraso del rival empieza aquí.
+function playerAction() {
+  if (stage !== "awaitInput" || player.state === "hurt") return;
+  const result = playerAttack(battle);
+  if (!result.accepted) return;
+  battle = result.battle;
+  receiveHit(rivalEntity, "rival", PLAYER_ATTACK, result.damage);
+  if (battle.phase === "victory") {
+    stage = "resolving";
+  } else {
+    stage = "rivalWaiting";
+    rivalDelay = RIVAL_DELAY_MS; // único punto donde se asigna
+  }
+}
+
+// Respuesta del rival: una sola vez, al agotarse rivalDelay
+function rivalAction() {
+  const result = rivalAttack(battle);
+  if (!result.accepted) return;
+  battle = result.battle;
+  receiveHit(player, "player", RIVAL_ATTACK, result.damage);
+  stage = battle.phase === "defeat" ? "resolving" : "awaitInput";
+}
+
+function updateBattle(dtMs) {
+  if (stage !== "rivalWaiting") return;
+  rivalDelay -= dtMs;
+  if (rivalDelay <= 0) rivalAction();
 }
 
 // Placaje de prueba: con 0 PS no hay daño ni aviso.
@@ -282,34 +338,30 @@ function testAttack() {
   if (isFainted(charizard)) return;
   const { combatant, damage } = applyAttack(charizard, TEST_ATTACK);
   charizard = combatant;
-  popup = { text: `${TEST_ATTACK.name} −${damage} PS`, ms: 0 };
-  renderHud();
-  player.state = "hurt";
-  player.hurtMs = HURT_MS;
-  setAnim("hurt");
+  receiveHit(player, "player", TEST_ATTACK, damage);
 }
 
 // R: PS completos y vuelta a idle con la misma dirección, desde cualquier estado.
 // keys no se toca: si hay una flecha pulsada, el siguiente frame camina.
 function restoreCharizard() {
   charizard = restore(charizard);
-  popup = null;
+  popups.player = null;
   player.state = "normal";
   player.hurtMs = 0;
-  setAnim("idle");
+  setAnim(player, "idle");
   player.animMs = 0;
   renderHud();
 }
 
-// Aviso sobre la cabeza: sube y se desvanece durante POPUP_MS
-function drawPopup() {
+// Aviso sobre la cabeza de la entidad: sube y se desvanece durante POPUP_MS
+function drawPopup(entity, popup) {
   if (!popup) return;
-  const frame = entityFrame(player);
+  const frame = entityFrame(entity);
   const feet = feetOf(frame);
   const head = frame.head ?? { x: feet.x, y: 0 };
   const t = popup.ms / POPUP_MS;
-  const x = player.x + (head.x - feet.x) * PLAYER_SCALE;
-  const y = player.y + (head.y - feet.y) * PLAYER_SCALE - 40 - t * POPUP_RISE;
+  const x = entity.x + (head.x - feet.x) * PLAYER_SCALE;
+  const y = entity.y + (head.y - feet.y) * PLAYER_SCALE - 40 - t * POPUP_RISE;
   ctx.save();
   ctx.globalAlpha = 1 - t;
   ctx.font = "bold 56px sans-serif";
@@ -334,34 +386,45 @@ const DIR_BY_VECTOR = [
   ["downLeft", "down", "downRight"],
 ];
 
-function setAnim(anim) {
-  if (player.anim === anim) return;
-  player.anim = anim;
-  player.animMs = 0;
+function setAnim(entity, anim) {
+  if (entity.anim === anim) return;
+  entity.anim = anim;
+  entity.animMs = 0;
+}
+
+// Reacción común a Charizard y al rival. Devuelve true mientras dure hurt.
+// Al terminar: debilitado (sleep) si sus PS son 0; si no, vuelve a normal.
+// Los PS se leen de hpSource(), así que en combate valen los de battle.
+function updateReaction(entity, combatant, dtMs) {
+  if (entity.state !== "hurt") return false;
+  entity.hurtMs -= dtMs;
+  if (entity.hurtMs > 0) {
+    entity.animMs += dtMs;
+    return true;
+  }
+  if (isFainted(combatant)) {
+    entity.state = "fainted";
+    setAnim(entity, "sleep");
+    renderHud();
+  } else {
+    entity.state = "normal";
+  }
+  return false;
+}
+
+function updatePopups(dtMs) {
+  for (const key of Object.keys(popups)) {
+    const popup = popups[key];
+    if (!popup) continue;
+    popup.ms += dtMs;
+    if (popup.ms >= POPUP_MS) popups[key] = null;
+  }
 }
 
 function update(dtMs) {
-  if (popup) {
-    popup.ms += dtMs;
-    if (popup.ms >= POPUP_MS) popup = null;
-  }
-
-  // Durante hurt no se mueve. Al terminar: debilitado si se quedó sin PS;
-  // si no, este mismo frame sigue abajo con walk o idle según el teclado
-  if (player.state === "hurt") {
-    player.hurtMs -= dtMs;
-    if (player.hurtMs > 0) {
-      player.animMs += dtMs;
-      return;
-    }
-    if (isFainted(charizard)) {
-      player.state = "fainted";
-      setAnim("sleep");
-      renderHud();
-    } else {
-      player.state = "normal";
-    }
-  }
+  // Durante hurt no se mueve. Al terminar, este mismo frame sigue abajo:
+  // walk o idle según el teclado, o el bloqueo si se quedó sin PS
+  if (updateReaction(player, hpSource().player, dtMs)) return;
 
   // Debilitado: duerme sin moverse hasta que R lo restaure
   if (player.state === "fainted") {
@@ -369,8 +432,9 @@ function update(dtMs) {
     return;
   }
 
-  // En combate no se mueve: queda en su sitio frente al rival
+  // En combate no se mueve: queda en idle en su sitio frente al rival
   if (mode === "battle") {
+    setAnim(player, "idle");
     player.animMs += dtMs;
     return;
   }
@@ -382,7 +446,7 @@ function update(dtMs) {
   // Moviéndose: walk hacia el vector. Quieto: idle con la última dirección
   const moving = vx !== 0 || vy !== 0;
   if (moving) player.dir = DIR_BY_VECTOR[vy + 1][vx + 1];
-  setAnim(moving ? "walk" : "idle");
+  setAnim(player, moving ? "walk" : "idle");
 
   // Normalizado: en diagonal no se va más rápido
   const length = Math.hypot(vx, vy);
@@ -398,8 +462,11 @@ function update(dtMs) {
   player.animMs += dtMs;
 }
 
+// El rival no se mueve: solo reacciona a los golpes y vuelve a idle
 function updateRival(dtMs) {
-  rivalEntity.animMs += dtMs; // idle respira; el rival no se mueve
+  if (updateReaction(rivalEntity, hpSource().rival, dtMs)) return;
+  if (rivalEntity.state === "normal") setAnim(rivalEntity, "idle");
+  rivalEntity.animMs += dtMs;
 }
 
 function render() {
@@ -413,7 +480,9 @@ function render() {
     { entity: player, sheets: images },
   ].sort((a, b) => a.entity.y - b.entity.y);
   drawables.forEach(({ entity, sheets }) => drawEntity(entity, sheets));
-  drawPopup(); // encima de los sprites
+  // Avisos encima de los sprites
+  drawPopup(rivalEntity, popups.rival);
+  drawPopup(player, popups.player);
 }
 
 // Bucle principal: el delta sale del timestamp de requestAnimationFrame
@@ -422,6 +491,8 @@ let lastTime = null;
 function loop(timestamp) {
   const dtMs = lastTime === null ? 0 : timestamp - lastTime;
   lastTime = timestamp;
+  updatePopups(dtMs);
+  if (mode === "battle") updateBattle(dtMs);
   update(dtMs);
   updateRival(dtMs);
   render();
@@ -449,6 +520,8 @@ if (errors.length > 0) {
 } else {
   Object.keys(sources).forEach((name, i) => (images[name] = results[i].value));
   rivalImages.idle = recolorSheet(images.idle);
+  rivalImages.hurt = recolorSheet(images.hurt);
+  rivalImages.sleep = recolorSheet(images.sleep);
   renderHud();
   // Los HUD aparecen junto con el juego, no sobre el mensaje de error
   hud.root.hidden = false;
