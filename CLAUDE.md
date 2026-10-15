@@ -8,10 +8,19 @@ Juego 2D en `<canvas>` con Charizard como personaje y dos fondos (bosque → vol
 
 - El MVP (`specs/00-mvp-charizard-movimiento.md`): Charizard se mueve por el fondo 1 con flechas/WASD en 8 direcciones, animado con `idle` y `walk`.
 - La barra de vida (`specs/01-barra-de-vida.md`): Charizard tiene 100 PS en un HUD, los pierde con un placaje de prueba (H), reacciona con `hurt`, se debilita con `sleep` a 0 PS y se restaura con R.
+- El rival por turnos (`specs/02-rival-por-turnos.md`): un "Charizard rival" azul (los mismos sprites con rojo y azul intercambiados) fijo en el fondo. Cerca de él, Enter inicia un combate por turnos que termina en victoria o derrota.
 
-`index.html` contiene el canvas y el HUD, y carga `src/main.js` como módulo. No hay `package.json`, ni build, ni linter. Las únicas pruebas automáticas son las de la lógica de combate, con el runner incluido en Node.
+`index.html` contiene el canvas, los dos HUD y el banner, y carga `src/main.js` como módulo. No hay `package.json`, ni build, ni linter. Las pruebas automáticas cubren solo la lógica pura (`combat.js`, `battle.js`, `recolor.js`), con el runner incluido en Node.
 
-Controles: flechas/WASD para moverse · `H` "Placaje de prueba" (potencia nominal 15; el daño efectivo nunca supera los PS restantes, por eso el séptimo golpe resta 10) · `R` restaurar los PS.
+Controles:
+
+| Tecla | Exploración | Combate |
+| --- | --- | --- |
+| Flechas / WASD | Moverse | Sin efecto |
+| `H` | "Placaje de prueba" (potencia nominal 15; el daño efectivo nunca supera los PS restantes, por eso el séptimo golpe resta 10) | Sin efecto |
+| `R` | Restaura a los dos Pokémon (100 PS, `idle`, sin avisos) | Sin efecto |
+| `Enter` | Inicia el combate a menos de 400 px del rival, si ninguno está debilitado y Charizard no está en `hurt` | Vuelve a exploración, solo con el resultado visible |
+| `Espacio` | Sin efecto | Arañazo, solo en el turno de Charizard |
 
 ## Comandos
 
@@ -27,7 +36,9 @@ Ejecutar las pruebas de lógica (requiere Node ≥ 22, sin dependencias ni `pack
 node --test
 ```
 
-Sin argumentos, Node encuentra `tests/combat.test.js`. No usar `node --test tests/`: en Node ≥ 22 el argumento es un patrón de archivos y una carpeta falla con `Cannot find module`.
+Sin argumentos, Node encuentra los `tests/*.test.js` (`combat`, `battle`, `recolor`). No usar `node --test tests/`: en Node ≥ 22 el argumento es un patrón de archivos y una carpeta falla con `Cannot find module`.
+
+Las pruebas automáticas validan la lógica (PS, turnos, secuencias de victoria y derrota, recoloreado de píxeles, pureza de los módulos). Todo lo visual —animaciones, HUD, banner, teclado, posiciones, errores de carga— se verifica a mano en el navegador con los criterios `V*` de cada spec.
 
 Regenerar `spritesheet.js` cuando cambien los assets (requiere Python con Pillow: `pip install pillow`):
 
@@ -37,7 +48,7 @@ python tools/gen_spritesheet.py .
 
 El argumento es la raíz del proyecto. Al terminar imprime `missing anchors: N [...]`: los frames en los que no se encontró algún píxel de anclaje.
 
-`spritesheet.js`, `src/main.js` y `src/combat.js` son módulos ES (`export`/`import`), así que el juego se carga con `<script type="module">` y debe servirse por HTTP; abrir `index.html` con `file://` no funciona. Requisitos: Python 3 para servir el juego (y Pillow solo para regenerar `spritesheet.js`), un navegador moderno, y Node ≥ 22 solo para las pruebas.
+`spritesheet.js` y los módulos de `src/` son módulos ES (`export`/`import`), así que el juego se carga con `<script type="module">` y debe servirse por HTTP; abrir `index.html` con `file://` no funciona. Requisitos: Python 3 para servir el juego (y Pillow solo para regenerar `spritesheet.js`), un navegador moderno, y Node ≥ 22 solo para las pruebas.
 
 ## Arquitectura
 
@@ -53,12 +64,24 @@ spritesheet.js   (generado, ~200 KB, 1476 líneas)
         ▼
 src/main.js      (juego; index.html lo carga como módulo)
         ▲  import
-src/combat.js    (lógica de PS pura; tests/combat.test.js la prueba con node --test)
+src/battle.js    (turnos, puro)  ──import──►  src/combat.js  (PS y daño, puro)
+src/recolor.js   (recoloreado del rival, puro)
+tests/           (combat, battle y recolor; node --test)
 ```
 
-- `src/combat.js` es puro: no importa nada ni usa `window`, `document` o el canvas, para poder probarlo en Node y reutilizarlo en la Feature 02. Exporta `MAX_HP`, `TEST_ATTACK` (`{ name: "Placaje de prueba", power: 15 }`), `createCombatant({ name, maxHp })`, `applyAttack`, `isFainted`, `restore` y `hpLevel`. Las funciones no modifican el combatiente `{ name, hp, maxHp }`: devuelven uno nuevo. `applyAttack` devuelve `{ combatant, damage }`, donde el daño efectivo es `min(power, hp)`, así que los PS nunca bajan de 0. `hpLevel` devuelve `high` (> 50 %), `medium` (> 20 %) o `low`.
-- `src/main.js` se encarga del teclado, las animaciones, el HUD y el render. `player.state` es `normal`, `hurt` (500 ms, `HURT_MS`, sin movimiento) o `fainted` (`sleep`, sin movimiento ni daño). Cada golpe reinicia `hurt`. El golpe letal pasa por `hurt` y después a `fainted`. R vuelve a `normal`/`idle` desde cualquier estado conservando la dirección. H y R ignoran `event.repeat`.
-- El HUD (nombre, barra, `PS N/100`, `Debilitado` y controles) es DOM dentro de `#stage`, en px fijos y con `pointer-events: none`, para que no se escale con el canvas. Se actualiza con `renderHud()` solo cuando cambian los PS o el estado. El aviso flotante del daño se dibuja en el canvas sobre `frame.head`.
+Los tres módulos de lógica son puros (sin `window`, `document` ni canvas) y no modifican lo que reciben: devuelven objetos nuevos. Cada uno tiene una prueba que lo comprueba.
+
+- `src/combat.js`: combatiente `{ name, hp, maxHp }`. Exporta `MAX_HP`, `TEST_ATTACK` (`{ name: "Placaje de prueba", power: 15 }`), `createCombatant({ name, maxHp })`, `applyAttack`, `isFainted`, `restore` y `hpLevel`. `applyAttack` devuelve `{ combatant, damage }`, donde el daño efectivo es `min(power, hp)`, así que los PS nunca bajan de 0. `hpLevel` devuelve `high` (> 50 %), `medium` (> 20 %) o `low`.
+- `src/battle.js`: combate `{ phase, player, rival }`, con `phase` en `playerTurn` → `rivalTurn` → … hasta `victory` o `defeat`. Exporta `PLAYER_ATTACK` (Arañazo, 25), `RIVAL_ATTACK` (Placaje, 20), `canStartBattle`, `createBattle` (recibe los PS tal cual), `playerAttack` y `rivalAttack` (→ `{ battle, damage, accepted }`; fuera de turno o tras el final devuelven el mismo combate con `accepted: false`), `isOver` y `finishBattle` (PS finales, o `null` si sigue el combate). Desde 100 PS gana Charizard (rival 75 → C 80 → … → rival 0); desde 40 pierde (rival 75 → C 20 → rival 50 → C 0).
+- `src/recolor.js`: `recolorPixels(data)` intercambia R y B de cada píxel con `A > 0`; A y los píxeles totalmente transparentes no cambian.
+- `src/main.js`: teclado, entidades, animaciones, HUD, banner y coordinación del combate.
+  - Entidades: `player` y `rivalEntity` comparten modelo (`x`, `y`, `dir`, `anim`, `animMs`, `state`, `hurtMs`). `state` es `normal`, `hurt` (500 ms, `HURT_MS`, sin movimiento) o `fainted` (`sleep`). Cada golpe reinicia `hurt` y el golpe letal pasa por `hurt` y después a `fainted`. Se dibujan alineadas por `frame.shadow` y ordenadas por `y`; el rival usa `rivalImages`, copias recoloreadas una vez al cargar en canvas auxiliares (las imágenes originales no se tocan).
+  - Modos: `mode` es `explore` o `battle`. Al entrar se guarda `explorePose` y Charizard se coloca a 320 px a la izquierda del rival mirando a la derecha; al salir recupera posición y dirección. El derrotado sigue en `sleep` y R restaura a los dos.
+  - Etapas (`stage`): `awaitInput` → (Espacio) `playerAttacking` → `rivalWaiting` (800 ms, `RIVAL_DELAY_MS`, desde el fin de la animación de Charizard) → `rivalAttacking` → `awaitInput`; con un debilitado, `resolving` → (perdedor en `sleep`) `result` → (Enter) exploración.
+  - Ataques: `action = { who, ms, hitApplied }`, uno a la vez. `attack` se reproduce sin bucle; el daño se aplica una sola vez cuando `action.ms` alcanza `ATTACK_HIT_MS` (suma de `durationsMs` antes de `events.hit`, ≈ 250 ms de 450). Los umbrales son por tiempo para no saltarse el impacto si se pierden fotogramas.
+  - PS: en exploración mandan `charizard` y `rival`; en combate, `battle.player` y `battle.rival`. HUD y reacciones leen siempre de `hpSource()` y la única transferencia es `finishBattle` al salir.
+  - Teclas: H, R, Enter y Espacio ignoran `event.repeat`; H y R solo actúan en exploración.
+- Interfaz (DOM dentro de `#stage`, px fijos, `pointer-events: none`): HUD de Charizard arriba a la izquierda (con la línea de controles, oculta en combate), HUD del rival arriba a la derecha, resaltado con borde en el HUD de quien tiene el turno, y banner abajo en el centro (`Enter: combatir`, turno y resultado). Los HUD se actualizan con `renderHud()` solo cuando cambian; los avisos flotantes de daño se dibujan en el canvas sobre `frame.head` del defensor.
 
 - Los assets siguen el formato PMD SpriteCollab: cada animación es una grilla donde la **columna es el frame** y la **fila es la dirección** (8 filas; `Sleep` tiene una sola y todas las direcciones apuntan a ella). El tamaño de frame cambia entre animaciones (p. ej. walk 56×72, attack 72×80).
 - El generador lee tamaños y duraciones de `AnimData.xml` y saca los anclajes buscando píxeles de color en `*-Offsets.png` (negro = `head`, verde = `center`, rojo = `leftHand`, azul = `rightHand`) y el píxel blanco de `*-Shadow.png` (`shadow`).
