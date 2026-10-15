@@ -8,6 +8,7 @@ import {
   playerAttack,
   rivalAttack,
   isOver,
+  finishBattle,
 } from "./battle.js";
 import { recolorPixels } from "./recolor.js";
 
@@ -98,7 +99,7 @@ window.addEventListener("keydown", (event) => {
     return;
   }
   if (event.code === "KeyR") {
-    if (!event.repeat && mode === "explore") restoreCharizard();
+    if (!event.repeat && mode === "explore") restoreAll();
     return;
   }
   // Espacio: Arañazo, solo en combate; nunca desplaza la página
@@ -107,9 +108,12 @@ window.addEventListener("keydown", (event) => {
     if (!event.repeat && mode === "battle") playerAction();
     return;
   }
-  // Enter: inicia el combate si se cumplen las condiciones
+  // Enter: en exploración inicia el combate si se cumplen las condiciones;
+  // en combate solo vuelve a exploración con el resultado visible
   if (event.code === "Enter" || event.code === "NumpadEnter") {
-    if (!event.repeat && mode === "explore" && canEnterBattle()) startBattle();
+    if (event.repeat) return;
+    if (mode === "explore" && canEnterBattle()) startBattle();
+    else if (mode === "battle" && stage === "result") endBattle();
     return;
   }
   if (!GAME_KEYS.has(event.code)) return;
@@ -264,6 +268,11 @@ function bannerText() {
   }
   if (stage === "awaitInput" || stage === "playerAttacking") return "Turno de Charizard — Espacio: Arañazo";
   if (stage === "rivalWaiting" || stage === "rivalAttacking") return "Turno de Charizard rival…";
+  if (stage === "result") {
+    return battle.phase === "victory"
+      ? "¡Charizard gana! — Enter: volver"
+      : "Charizard se ha debilitado — Enter: volver";
+  }
   return "";
 }
 
@@ -349,6 +358,12 @@ function finishAction() {
 // Umbrales por tiempo: un salto de fotogramas no se salta el impacto,
 // y en el mismo update se comprueba primero el impacto y después el fin
 function updateBattle(dtMs) {
+  // El resultado se muestra cuando el perdedor ya duerme (tras su hurt)
+  if (stage === "resolving") {
+    const loser = battle.phase === "victory" ? rivalEntity : player;
+    if (loser.state === "fainted") stage = "result";
+    return;
+  }
   if (stage === "rivalWaiting") {
     rivalDelay -= dtMs;
     if (rivalDelay <= 0) startAction("rival");
@@ -363,6 +378,38 @@ function updateBattle(dtMs) {
   if (action.ms >= CHARIZARD.attack.totalMs) finishAction();
 }
 
+// Enter en result: una sola transferencia de PS y vuelta a la pose de exploración.
+// No queda ninguna acción, espera ni aviso del combate.
+function endBattle() {
+  ({ player: charizard, rival } = finishBattle(battle));
+  battle = null;
+  stage = null;
+  action = null;
+  rivalDelay = 0;
+  popups.player = null;
+  popups.rival = null;
+
+  player.x = explorePose.x;
+  player.y = explorePose.y;
+  player.dir = explorePose.dir;
+  explorePose = null;
+  // El derrotado sigue en sleep; el otro vuelve a idle
+  if (player.state !== "fainted") {
+    player.state = "normal";
+    player.hurtMs = 0;
+    setAnim(player, "idle");
+  }
+  rivalEntity.dir = "left";
+  if (rivalEntity.state !== "fainted") {
+    rivalEntity.state = "normal";
+    rivalEntity.hurtMs = 0;
+    setAnim(rivalEntity, "idle");
+  }
+
+  mode = "explore";
+  renderHud();
+}
+
 // Placaje de prueba: con 0 PS no hay daño ni aviso.
 // Cada golpe (re)inicia la reacción hurt; no hay invulnerabilidad.
 function testAttack() {
@@ -372,15 +419,23 @@ function testAttack() {
   receiveHit(player, "player", TEST_ATTACK, damage);
 }
 
-// R: PS completos y vuelta a idle con la misma dirección, desde cualquier estado.
+// R (solo en exploración): PS completos para los dos y estados reiniciados.
+// Charizard conserva su dirección; el rival vuelve a idle en RIVAL_POS mirando a la izquierda.
 // keys no se toca: si hay una flecha pulsada, el siguiente frame camina.
-function restoreCharizard() {
+function restoreAll() {
   charizard = restore(charizard);
+  rival = restore(rival);
   popups.player = null;
-  player.state = "normal";
-  player.hurtMs = 0;
-  setAnim(player, "idle");
-  player.animMs = 0;
+  popups.rival = null;
+  for (const entity of [player, rivalEntity]) {
+    entity.state = "normal";
+    entity.hurtMs = 0;
+    setAnim(entity, "idle");
+    entity.animMs = 0;
+  }
+  rivalEntity.x = RIVAL_POS.x;
+  rivalEntity.y = RIVAL_POS.y;
+  rivalEntity.dir = "left";
   renderHud();
 }
 
