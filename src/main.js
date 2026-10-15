@@ -1,5 +1,6 @@
 import { BACKGROUNDS, CHARIZARD, getFrame, frameIndexAt } from "../spritesheet.js";
 import { TEST_ATTACK, createCombatant, applyAttack, isFainted, restore, hpLevel } from "./combat.js";
+import { recolorPixels } from "./recolor.js";
 
 // Constantes ajustables
 const PLAYER_SCALE = 4; // multiplicador del sprite, en píxeles del fondo
@@ -14,6 +15,8 @@ const POPUP_RISE = 120; // cuánto sube el aviso durante su vida, en píxeles de
 // Mundo: se lee de BACKGROUNDS.fondo1, no se escribe a mano
 const WORLD = { w: BACKGROUNDS.fondo1.sw, h: BACKGROUNDS.fondo1.sh }; // 2752 × 1536
 
+const RIVAL_POS = { x: WORLD.w * 0.75, y: WORLD.h / 2 }; // pies del rival
+
 // Estado del jugador
 const player = {
   x: WORLD.w / 2, // posición de los PIES (punto shadow), en píxeles del fondo
@@ -25,8 +28,20 @@ const player = {
   hurtMs: 0, // tiempo restante de hurt
 };
 
-// Estado de combate de Charizard
+// Rival: entidad dibujable con el mismo modelo que player, fija en RIVAL_POS
+const rivalEntity = {
+  x: RIVAL_POS.x,
+  y: RIVAL_POS.y,
+  dir: "left",
+  anim: "idle",
+  animMs: 0,
+  state: "normal",
+  hurtMs: 0,
+};
+
+// Combatientes de exploración
 let charizard = createCombatant({ name: "Charizard" });
+let rival = createCombatant({ name: "Charizard rival" });
 
 // Aviso flotante (uno a la vez; uno nuevo reemplaza al anterior)
 let popup = null; // { text: "Placaje de prueba −15 PS", ms: 0 }
@@ -84,6 +99,21 @@ ctx.imageSmoothingEnabled = false;
 // Imágenes cargadas
 const images = { fondo1: null, idle: null, walk: null, hurt: null, sleep: null };
 
+// Hojas recoloreadas del rival: canvas auxiliares del mismo tamaño que la original
+const rivalImages = { idle: null, hurt: null, sleep: null, attack: null };
+
+// Copia la hoja en un canvas auxiliar y la recolorea una sola vez; la imagen original no se toca
+function recolorSheet(img) {
+  const sheet = document.createElement("canvas");
+  sheet.width = img.width;
+  sheet.height = img.height;
+  const sheetCtx = sheet.getContext("2d");
+  sheetCtx.drawImage(img, 0, 0);
+  const { data } = sheetCtx.getImageData(0, 0, img.width, img.height);
+  sheetCtx.putImageData(new ImageData(recolorPixels(data), img.width, img.height), 0, 0);
+  return sheet;
+}
+
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -115,27 +145,28 @@ function feetOf(frame) {
   return frame.shadow ?? { x: frame.sw / 2, y: frame.sh };
 }
 
-function drawShadow() {
+function drawShadow(entity) {
   ctx.save();
   ctx.globalAlpha = SHADOW_ELLIPSE.alpha;
   ctx.fillStyle = "#000";
   ctx.beginPath();
-  ctx.ellipse(player.x, player.y, SHADOW_ELLIPSE.rx, SHADOW_ELLIPSE.ry, 0, 0, Math.PI * 2);
+  ctx.ellipse(entity.x, entity.y, SHADOW_ELLIPSE.rx, SHADOW_ELLIPSE.ry, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
 
-function playerFrame() {
-  return getFrame(player.anim, player.dir, frameIndexAt(player.anim, player.animMs));
+function entityFrame(entity) {
+  return getFrame(entity.anim, entity.dir, frameIndexAt(entity.anim, entity.animMs));
 }
 
-function drawPlayer() {
-  const frame = playerFrame();
+// sheets: images (Charizard) o rivalImages; los frames y anclajes son los mismos
+function drawEntity(entity, sheets) {
+  const frame = entityFrame(entity);
   const feet = feetOf(frame);
-  const dx = player.x - feet.x * PLAYER_SCALE;
-  const dy = player.y - feet.y * PLAYER_SCALE;
+  const dx = entity.x - feet.x * PLAYER_SCALE;
+  const dy = entity.y - feet.y * PLAYER_SCALE;
   ctx.drawImage(
-    images[player.anim],
+    sheets[entity.anim],
     frame.sx,
     frame.sy,
     frame.sw,
@@ -148,19 +179,28 @@ function drawPlayer() {
 }
 
 // HUD en el DOM: se actualiza solo cuando cambian los PS, no en cada frame
-const hud = {
-  root: document.getElementById("hud"),
-  name: document.getElementById("hud-name"),
-  fill: document.getElementById("hud-fill"),
-  text: document.getElementById("hud-text"),
-};
+function hudElements(id) {
+  return {
+    root: document.getElementById(id),
+    name: document.getElementById(`${id}-name`),
+    fill: document.getElementById(`${id}-fill`),
+    text: document.getElementById(`${id}-text`),
+  };
+}
+const hud = hudElements("hud");
+const rivalHud = hudElements("hud-rival");
+
+function renderHudFor(els, combatant, entity) {
+  els.name.textContent = combatant.name;
+  els.fill.style.width = `${(combatant.hp / combatant.maxHp) * 100}%`;
+  els.fill.style.backgroundColor = HP_COLORS[hpLevel(combatant.hp, combatant.maxHp)];
+  const fainted = entity.state === "fainted" ? " · Debilitado" : "";
+  els.text.textContent = `PS ${combatant.hp}/${combatant.maxHp}${fainted}`;
+}
 
 function renderHud() {
-  hud.name.textContent = charizard.name;
-  hud.fill.style.width = `${(charizard.hp / charizard.maxHp) * 100}%`;
-  hud.fill.style.backgroundColor = HP_COLORS[hpLevel(charizard.hp, charizard.maxHp)];
-  const fainted = player.state === "fainted" ? " · Debilitado" : "";
-  hud.text.textContent = `PS ${charizard.hp}/${charizard.maxHp}${fainted}`;
+  renderHudFor(hud, charizard, player);
+  renderHudFor(rivalHud, rival, rivalEntity);
 }
 
 // Placaje de prueba: con 0 PS no hay daño ni aviso.
@@ -191,7 +231,7 @@ function restoreCharizard() {
 // Aviso sobre la cabeza: sube y se desvanece durante POPUP_MS
 function drawPopup() {
   if (!popup) return;
-  const frame = playerFrame();
+  const frame = entityFrame(player);
   const feet = feetOf(frame);
   const head = frame.head ?? { x: feet.x, y: 0 };
   const t = popup.ms / POPUP_MS;
@@ -279,11 +319,22 @@ function update(dtMs) {
   player.animMs += dtMs;
 }
 
+function updateRival(dtMs) {
+  rivalEntity.animMs += dtMs; // idle respira; el rival no se mueve
+}
+
 function render() {
   drawBackground();
-  drawShadow(); // antes que el sprite: queda por detrás
-  drawPlayer();
-  drawPopup(); // encima del sprite
+  // Sombras antes que los sprites: quedan en el suelo, por detrás de los dos
+  drawShadow(rivalEntity);
+  drawShadow(player);
+  // Orden por y: se dibuja delante quien tiene los pies más abajo (empate: Charizard delante)
+  const drawables = [
+    { entity: rivalEntity, sheets: rivalImages },
+    { entity: player, sheets: images },
+  ].sort((a, b) => a.entity.y - b.entity.y);
+  drawables.forEach(({ entity, sheets }) => drawEntity(entity, sheets));
+  drawPopup(); // encima de los sprites
 }
 
 // Bucle principal: el delta sale del timestamp de requestAnimationFrame
@@ -293,6 +344,7 @@ function loop(timestamp) {
   const dtMs = lastTime === null ? 0 : timestamp - lastTime;
   lastTime = timestamp;
   update(dtMs);
+  updateRival(dtMs);
   render();
   requestAnimationFrame(loop);
 }
@@ -316,7 +368,10 @@ if (errors.length > 0) {
   drawLoadErrors(errors.map((error) => error.message));
 } else {
   Object.keys(sources).forEach((name, i) => (images[name] = results[i].value));
+  rivalImages.idle = recolorSheet(images.idle);
   renderHud();
-  hud.root.hidden = false; // el HUD aparece junto con el juego, no sobre el mensaje de error
+  // Los HUD aparecen junto con el juego, no sobre el mensaje de error
+  hud.root.hidden = false;
+  rivalHud.root.hidden = false;
   requestAnimationFrame(loop);
 }

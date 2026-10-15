@@ -28,11 +28,13 @@
         width: 100%;
         height: auto;
       }
-      /* HUD en px fijos: no se escala con el canvas y sigue legible en ventanas pequeñas. */
-      #hud {
+      /* HUD en px fijos: no se escala con el canvas y sigue legible en ventanas pequeñas.
+         max-width: en ventanas estrechas los dos HUD se acortan en vez de tocarse. */
+      .hud {
         position: absolute;
         top: 12px;
-        left: 12px;
+        box-sizing: border-box;
+        max-width: calc(50% - 18px);
         padding: 8px 10px;
         border-radius: 6px;
         background: rgba(0, 0, 0, 0.6);
@@ -40,8 +42,15 @@
         font: 16px/1.25 sans-serif;
         pointer-events: none;
       }
-      #hud-bar {
+      #hud {
+        left: 12px;
+      }
+      #hud-rival {
+        right: 12px;
+      }
+      .hud-bar {
         width: 200px;
+        max-width: calc(100% - 4px); /* = min(200px, 100%) contando el borde, sin depender del texto */
         height: 16px;
         margin: 4px 0;
         border: 2px solid #fff;
@@ -49,7 +58,7 @@
         background: #333;
         overflow: hidden;
       }
-      #hud-fill {
+      .hud-fill {
         height: 100%;
       }
       #hud-controls {
@@ -61,11 +70,16 @@
   <body>
     <div id="stage">
       <canvas id="game"></canvas>
-      <div id="hud" hidden>
+      <div id="hud" class="hud" hidden>
         <div id="hud-name"></div>
-        <div id="hud-bar"><div id="hud-fill"></div></div>
+        <div class="hud-bar"><div id="hud-fill" class="hud-fill"></div></div>
         <div id="hud-text"></div>
         <div id="hud-controls">H: placaje de prueba · R: restaurar</div>
+      </div>
+      <div id="hud-rival" class="hud" hidden>
+        <div id="hud-rival-name"></div>
+        <div class="hud-bar"><div id="hud-rival-fill" class="hud-fill"></div></div>
+        <div id="hud-rival-text"></div>
       </div>
     </div>
     <script type="module" src="src/main.js"></script>
