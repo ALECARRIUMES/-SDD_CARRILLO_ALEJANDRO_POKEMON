@@ -1,10 +1,12 @@
 import { BACKGROUNDS, CHARIZARD, getFrame, frameIndexAt } from "../spritesheet.js";
+import { createCombatant, hpLevel } from "./combat.js";
 
 // Constantes ajustables
 const PLAYER_SCALE = 4; // multiplicador del sprite, en píxeles del fondo
 const PLAYER_SPEED = 600; // píxeles del fondo por segundo
 const MARGIN = { x: 100, top: 260, bottom: 20 }; // margen de los pies respecto a cada borde
 const SHADOW_ELLIPSE = { rx: 64, ry: 20, alpha: 0.35 }; // sombra bajo los pies, en píxeles del fondo
+const HP_COLORS = { high: "#4caf50", medium: "#fbc02d", low: "#e53935" }; // relleno de la barra por nivel
 
 // Mundo: se lee de BACKGROUNDS.fondo1, no se escribe a mano
 const WORLD = { w: BACKGROUNDS.fondo1.sw, h: BACKGROUNDS.fondo1.sh }; // 2752 × 1536
@@ -17,6 +19,9 @@ const player = {
   anim: "idle", // 'idle' | 'walk'
   animMs: 0, // tiempo transcurrido en la animación actual
 };
+
+// Estado de combate de Charizard
+let charizard = createCombatant({ name: "Charizard" });
 
 // Teclas pulsadas, por event.code ('ArrowUp', 'KeyW', ...)
 const keys = new Set();
@@ -121,6 +126,21 @@ function drawPlayer() {
   );
 }
 
+// HUD en el DOM: se actualiza solo cuando cambian los PS, no en cada frame
+const hud = {
+  root: document.getElementById("hud"),
+  name: document.getElementById("hud-name"),
+  fill: document.getElementById("hud-fill"),
+  text: document.getElementById("hud-text"),
+};
+
+function renderHud() {
+  hud.name.textContent = charizard.name;
+  hud.fill.style.width = `${(charizard.hp / charizard.maxHp) * 100}%`;
+  hud.fill.style.backgroundColor = HP_COLORS[hpLevel(charizard.hp, charizard.maxHp)];
+  hud.text.textContent = `PS ${charizard.hp}/${charizard.maxHp}`;
+}
+
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -196,5 +216,7 @@ if (errors.length > 0) {
   drawLoadErrors(errors.map((error) => error.message));
 } else {
   Object.keys(sources).forEach((name, i) => (images[name] = results[i].value));
+  renderHud();
+  hud.root.hidden = false; // el HUD aparece junto con el juego, no sobre el mensaje de error
   requestAnimationFrame(loop);
 }

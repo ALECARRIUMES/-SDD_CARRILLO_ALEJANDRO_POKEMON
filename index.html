@@ -18,16 +18,51 @@
         place-items: center;
         overflow: hidden;
       }
-      /* El canvas tiene la resolución del fondo; CSS lo ajusta a la ventana sin deformarlo. */
+      /* El canvas tiene la resolución del fondo; CSS ajusta #stage a la ventana sin deformarlo. */
+      #stage {
+        position: relative;
+        width: min(100vw, calc(100vh * 2752 / 1536));
+      }
       #game {
         display: block;
-        width: min(100vw, calc(100vh * 2752 / 1536));
+        width: 100%;
         height: auto;
+      }
+      /* HUD en px fijos: no se escala con el canvas y sigue legible en ventanas pequeñas. */
+      #hud {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        font: 16px/1.25 sans-serif;
+        pointer-events: none;
+      }
+      #hud-bar {
+        width: 200px;
+        height: 16px;
+        margin: 4px 0;
+        border: 2px solid #fff;
+        border-radius: 4px;
+        background: #333;
+        overflow: hidden;
+      }
+      #hud-fill {
+        height: 100%;
       }
     </style>
   </head>
   <body>
-    <canvas id="game"></canvas>
+    <div id="stage">
+      <canvas id="game"></canvas>
+      <div id="hud" hidden>
+        <div id="hud-name"></div>
+        <div id="hud-bar"><div id="hud-fill"></div></div>
+        <div id="hud-text"></div>
+      </div>
+    </div>
     <script type="module" src="src/main.js"></script>
   </body>
 </html>
